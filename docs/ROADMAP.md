@@ -31,7 +31,7 @@ Cada etapa termina en algo desplegado y verificable. No se avanza a la siguiente
 **Objetivo:** un proyecto vacío pero desplegado, con la identidad de ONE ya en el código.
 
 - [x] `git init` (repositorio local)
-- [ ] Repositorio privado en GitHub
+- [x] Repositorio en GitHub: `feliperetamalj/One-Evolution-CX` (público, sin secretos; `.env*` queda fuera)
 - [x] Proyecto Next.js 16 + Tailwind v4 + shadcn/ui (estilo base `power` de design-styles)
 - [x] Proyecto Supabase en la organización de ONE (quedó en us-west-2; Vercel en `pdx1` para estar junto a la base). Hoy tiene datos ficticios: limpiar antes del piloto
 - [x] Proyecto Vercel `one-cx` (región `pdx1`), desplegado en https://one-cx.vercel.app por CLI
