@@ -176,6 +176,8 @@ n, top-2-box, suma) y `question_stats` (n y top-2-box por pregunta). Los indicad
 - **NPS** = % de notas 9–10 − % de notas 0–6 (rango −100 a +100).
 - **CSAT de una categoría** = % de respuestas 4–5 (top-2-box). Se muestra también el promedio 1–5.
 - **CSAT global** = promedio de los top-2-box de las 8 categorías.
+- **Períodos** (varias olas, 1, 3, 6 o 12 meses, total): se suman los conteos de las olas del período en
+  vez de promediar sus porcentajes. El cambio se compara con el período anterior de igual largo.
 - **Tasa de respuesta** = respuestas ÷ invitaciones de la ola.
 - **Backlog de seguimiento** = detractores que aceptaron contacto y aún no tienen `followed_up_at`.
 

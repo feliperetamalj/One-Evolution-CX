@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
-import { parseClients, summarize, type CsatStat, type WavePlanStat } from "../lib/survey.ts";
+import { parseClients, periodWaves, pool, summarize, type CsatStat, type WavePlanStat } from "../lib/survey.ts";
 
 const dir = new URL("./migrations/", import.meta.url);
 const migrations = readdirSync(dir).sort().map((f) => readFileSync(new URL(f, dir), "utf8"));
@@ -89,6 +89,12 @@ test("migración, respuestas e indicadores", async () => {
   assert.equal(w2.npsRolling, 0); // (2 + 0 − 1 − 1) / (4 + 1)
   assert.equal(summarize(s, c, "duo")[0].nps, -50);
 
+  const both = pool(s, c, [wave1, wave2])!;
+  assert.equal(both.nps, 0); // (2 − 2) / 5: suma conteos, no promedia NPS
+  assert.equal(both.responseRate, 50); // 5 de 10
+  assert.deepEqual(both.items.equipamiento, { n: 2, top2: 50, avg: 4 });
+  assert.equal(pool(s, c, []), null);
+
   const dani = (await db.query<{ comment: string | null }>("select comment from responses where nps = 3")).rows[0];
   assert.equal(dani.comment, null, "comentario vacío queda en null");
 
@@ -99,6 +105,27 @@ test("migración, respuestas e indicadores", async () => {
   await db.query("update waves set opens_at = now() - interval '8 days', closes_at = now() - interval '1 day' where id = $1", [wave1]);
   await assert.rejects(save(inv.Beto, 10), /invitation_closed/);
   await assert.rejects(save("00000000-0000-0000-0000-000000000000", 10), /invitation_closed/);
+});
+
+test("olas de cada período y del período anterior", () => {
+  const now = new Date("2026-11-07T12:00:00Z");
+  // 12 olas cada 14 días; la 12 abrió hace 2 días.
+  const waves = Array.from({ length: 12 }, (_, i) => ({
+    id: i + 1,
+    opens_at: new Date(now.getTime() - (14 * (11 - i) + 2) * 864e5).toISOString(),
+  }));
+  const p = (key: Parameters<typeof periodWaves>[0]["key"], extra = {}) => periodWaves({ key, ...extra }, waves, now);
+
+  assert.deepEqual(p("ola"), { current: [12], previous: [11] });
+  assert.deepEqual(p("ola", { ola: 1 }), { current: [1], previous: [] });
+  assert.deepEqual(p("ola", { ola: 99 }), { current: [12], previous: [11] });
+  assert.deepEqual(p("olas"), { current: [9, 10, 11, 12], previous: [5, 6, 7, 8] });
+  assert.deepEqual(p("olas", { desde: 3, hasta: 2 }), { current: [2, 3], previous: [1] });
+  assert.deepEqual(p("1m"), { current: [10, 11, 12], previous: [8, 9] });
+  assert.deepEqual(p("3m").current, [6, 7, 8, 9, 10, 11, 12]);
+  assert.deepEqual(p("3m").previous, [1, 2, 3, 4, 5]);
+  assert.deepEqual(p("12m"), { current: waves.map((w) => w.id), previous: [] });
+  assert.deepEqual(p("total"), { current: waves.map((w) => w.id), previous: [] });
 });
 
 test("importar clientes desde CSV de Excel", () => {

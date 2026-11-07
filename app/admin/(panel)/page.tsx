@@ -6,12 +6,12 @@ import { requireAdmin } from "@/lib/auth";
 import { closeDate, isOpen, type Wave } from "@/lib/invites";
 import { db } from "@/lib/supabase";
 import {
-  PLANS, segment, summarize,
-  type Category, type CsatStat, type PlanKey, type Segment, type WavePlanStat,
+  PERIODS, PLANS, periodWaves, pool, segment, summarize,
+  type Category, type CsatStat, type PeriodKey, type PlanKey, type Segment, type WavePlanStat,
 } from "@/lib/survey";
 import { cn } from "@/lib/utils";
 import { markFollowedUp } from "../actions";
-import { Composition, NpsTrend, SEGMENT_COLORS, WavePicker } from "./charts";
+import { Composition, NpsTrend, ParamSelect, SEGMENT_COLORS } from "./charts";
 
 const CSAT_TARGET = 80; // % de satisfechos (4–5) que ONE considera "bien"; centro del mapa de calor
 
@@ -28,15 +28,27 @@ type Comment = {
 const SEGMENTS = { todos: "Todos", pendientes: "Por contactar", detractor: "Detractores", pasivo: "Pasivos", promotor: "Promotores" } as const;
 const SEG_LABEL: Record<Segment, string> = { detractor: "Detractor", pasivo: "Pasivo", promotor: "Promotor" };
 const SEG_COLOR: Record<Segment, string> = { detractor: SEGMENT_COLORS.detractores, pasivo: SEGMENT_COLORS.pasivos, promotor: SEGMENT_COLORS.promotores };
+const MONTHS: Record<Exclude<PeriodKey, "ola" | "olas">, { title: string; vs?: string }> = {
+  "1m": { title: "Último mes", vs: "vs mes anterior" },
+  "3m": { title: "Últimos 3 meses", vs: "vs 3 meses anteriores" },
+  "6m": { title: "Últimos 6 meses", vs: "vs 6 meses anteriores" },
+  "12m": { title: "Último año", vs: "vs año anterior" },
+  total: { title: "Todas las olas" },
+};
 
 const day = (iso: string) => new Date(iso).toLocaleDateString("es-CL", { day: "numeric", month: "short", timeZone: "America/Santiago" });
 const pending = (c: Comment) => c.nps <= 6 && c.contact_ok && !c.followed_up_at;
+const span = (ids: number[]) => (ids.length === 1 ? `Ola ${ids[0]}` : `Olas ${ids[0]} a ${ids.at(-1)}`);
 
 export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
   await requireAdmin();
   const sp = await searchParams;
-  const plan = typeof sp.plan === "string" && sp.plan in PLANS ? (sp.plan as PlanKey) : undefined;
-  const seg = typeof sp.seg === "string" && sp.seg in SEGMENTS ? (sp.seg as keyof typeof SEGMENTS) : "todos";
+  const str = (k: string) => (typeof sp[k] === "string" ? sp[k] : undefined);
+  const num = (k: string) => (/^\d+$/.test(str(k) ?? "") ? Number(str(k)) : undefined);
+  const pick = <T extends object>(o: T, k: string) => (Object.hasOwn(o, str(k) ?? "") ? (str(k) as keyof T) : undefined);
+  const plan = pick(PLANS, "plan");
+  const seg = pick(SEGMENTS, "seg") ?? "todos";
+  const period = pick(PERIODS, "periodo") ?? "ola";
 
   const sb = db();
   const [stats, csat, waves, comments, categories] = await Promise.all([
@@ -52,133 +64,183 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
     sb.from("csat_categories").select("key, label").order("position").returns<Category[]>(),
   ]);
 
-  const summary = summarize(stats.data ?? [], csat.data ?? [], plan);
   const allWaves = waves.data ?? [];
+  const summary = summarize(stats.data ?? [], csat.data ?? [], plan);
   if (!summary.length || !allWaves.length) return <Empty />;
 
-  const cur = summary.find((w) => w.wave === Number(sp.ola)) ?? summary.at(-1)!;
-  const prev = summary[summary.indexOf(cur) - 1];
-  const wave = allWaves.find((w) => w.id === cur.wave)!;
+  const { current, previous } = periodWaves({ key: period, ola: num("ola"), desde: num("desde"), hasta: num("hasta") }, allWaves);
+  const cur = pool(stats.data ?? [], csat.data ?? [], current, plan);
+  const prev = pool(stats.data ?? [], csat.data ?? [], previous, plan);
+  const byWave = period === "ola" || period === "olas";
+  const title = byWave ? span(current) : MONTHS[period].title;
+  const vs = previous.length ? (byWave ? `vs ${span(previous)}` : MONTHS[period].vs) : undefined;
+  const inPeriod = allWaves.filter((w) => current.includes(w.id));
+  const last = inPeriod.at(-1);
+  // Una ola: se ve en contexto con las 7 anteriores. Un período: sus olas.
+  const chart = period === "ola" ? summary.filter((w) => w.wave <= current[0]).slice(-8) : summary.filter((w) => current.includes(w.wave));
+
   const byPlan = (comments.data ?? []).filter((c) => !plan || c.invitations.plan === plan);
   const toContact = byPlan.filter(pending);
   const list = seg === "pendientes"
     ? toContact
-    : byPlan.filter((c) => c.invitations.wave_id === cur.wave && (seg === "todos" || segment(c.nps) === seg));
+    : byPlan.filter((c) => current.includes(c.invitations.wave_id) && (seg === "todos" || segment(c.nps) === seg));
 
   const href = (next: Record<string, string | undefined>) => {
     const p = new URLSearchParams();
-    Object.entries({ ola: String(cur.wave), plan, seg, ...next }).forEach(([k, v]) => v && v !== "todos" && p.set(k, v));
+    Object.entries({ periodo: period, ola: str("ola"), desde: str("desde"), hasta: str("hasta"), plan, seg, ...next })
+      .forEach(([k, v]) => v && v !== "todos" && !(k === "periodo" && v === "ola") && p.set(k, v));
     return `?${p}`;
   };
-  const items = (categories.data ?? []).map((i) => ({ ...i, now: cur.items[i.key], before: prev?.items[i.key] }))
+  const waveOptions = [...allWaves].reverse().map((w) => ({ value: String(w.id), label: `Ola ${w.id} · ${day(w.opens_at)}` }));
+  const items = (categories.data ?? []).map((i) => ({ ...i, now: cur?.items[i.key], before: prev?.items[i.key] }))
     .filter((i) => i.now)
     .sort((a, b) => a.now!.top2 - b.now!.top2);
-  const recent = summary.slice(-8);
+  const rolling = summary.find((w) => w.wave === current[0])?.npsRolling;
 
   return (
     <div className="flex flex-col gap-8">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div className="flex flex-col gap-2">
-          <p className="text-eyebrow text-brand">Experiencia de clientes</p>
-          <h1 className="text-display !text-4xl">Ola {cur.wave}</h1>
+      <header className="flex flex-col gap-2">
+        <p className="text-eyebrow text-brand">Experiencia de clientes</p>
+        <h1 className="text-display !text-4xl">{title}</h1>
+        {last && (
           <p className="text-sm text-muted-foreground">
-            {day(wave.opens_at)} – {day(wave.closes_at)}
-            {isOpen(wave) && <span className="ml-2 rounded-full bg-brand/15 px-2 py-0.5 text-brand">En curso · cierra el {closeDate(wave.closes_at)}</span>}
+            {!byWave && `${span(current)} · `}
+            {day(inPeriod[0].opens_at)} – {day(last.closes_at)}
+            {isOpen(last) && <span className="ml-2 rounded-full bg-brand/15 px-2 py-0.5 text-brand">En curso · cierra el {closeDate(last.closes_at)}</span>}
           </p>
-        </div>
-        <WavePicker value={cur.wave} waves={[...allWaves].reverse().map((w) => ({ id: w.id, label: `Ola ${w.id} · ${day(w.opens_at)}` }))} />
+        )}
       </header>
 
-      <nav aria-label="Filtrar por plan" className="-mt-2 flex flex-wrap gap-2">
-        {[undefined, ...Object.keys(PLANS)].map((p) => (
-          <Chip key={p ?? "todos"} href={href({ plan: p })} active={plan === p}>
-            {p ? PLANS[p as PlanKey] : "Todos los planes"}
-          </Chip>
-        ))}
-      </nav>
-
-      <section aria-label="Indicadores" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi label="NPS" value={cur.nps} delta={diff(cur.nps, prev?.nps)} prev={prev?.wave} hint={`${cur.responded} respuestas · media 2 olas ${cur.npsRolling ?? "—"}`} />
-        <Kpi label="CSAT global" value={cur.csat} unit="%" delta={diff(cur.csat, prev?.csat)} prev={prev?.wave} hint="% satisfechos (4–5), promedio de categorías" />
-        <Kpi label="Tasa de respuesta" value={cur.responseRate} unit="%" delta={diff(cur.responseRate, prev?.responseRate)} prev={prev?.wave} hint={`${cur.responded} de ${cur.invited} clientes`} />
-        <Link href={href({ seg: "pendientes" })} className="rounded-2xl border border-border bg-card p-4 transition-colors hover:border-ring/60 sm:p-5">
-          <p className="text-sm text-muted-foreground">Por contactar</p>
-          <p className="mt-2 flex items-center gap-2 text-4xl font-semibold">
-            <AnimatedNumber value={toContact.length} />
-            {toContact.length > 0 && <CircleAlert className="size-6 text-destructive" aria-label="requiere acción" />}
-          </p>
-          <p className="mt-2 text-xs text-muted-foreground">Detractores que aceptaron contacto, todas las olas</p>
-        </Link>
-      </section>
-
-      <div className="grid gap-3 lg:grid-cols-5">
-        <Panel title="NPS por ola" className="lg:col-span-3">
-          <NpsTrend data={summary} />
-        </Panel>
-        <Panel title="Promotores, pasivos y detractores" className="lg:col-span-2">
-          <Composition data={recent} />
-        </Panel>
-      </div>
-
-      <div className="grid gap-3 lg:grid-cols-5">
-        <Panel title={`CSAT por categoría · Ola ${cur.wave}`} subtitle="% satisfechos (4–5), de peor a mejor" className="lg:col-span-2">
-          {items.length ? (
-            <ul className="flex flex-col gap-4">
-              {items.map((i) => (
-                <li key={i.key} className="grid grid-cols-[8.5rem_1fr_5.5rem] items-center gap-3 text-sm">
-                  <span className="truncate" title={i.label}>{i.label}</span>
-                  <span className="h-2.5 overflow-hidden rounded-full bg-muted">
-                    <span className="block h-full rounded-full bg-brand" style={{ width: `${i.now!.top2}%` }} />
-                  </span>
-                  <span className="flex items-center justify-end gap-2 tabular-nums">
-                    {i.now!.top2}%
-                    <Delta value={diff(i.now!.top2, i.before?.top2)} compact />
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-muted-foreground">Aún no hay notas por categoría en esta ola.</p>
+      <div className="-mt-2 flex flex-col gap-3">
+        <nav aria-label="Período" className="flex flex-wrap gap-2">
+          {Object.entries(PERIODS).map(([k, v]) => (
+            <Chip key={k} href={href({ periodo: k })} active={period === k}>
+              {v}
+            </Chip>
+          ))}
+        </nav>
+        <div className="flex flex-wrap items-center gap-2">
+          {period === "ola" && <ParamSelect param="ola" label="Ola" value={String(current[0])} options={waveOptions} />}
+          {period === "olas" && (
+            <>
+              <ParamSelect param="desde" label="Desde la ola" value={String(current[0])} options={waveOptions} />
+              <span className="text-sm text-muted-foreground">a</span>
+              <ParamSelect param="hasta" label="Hasta la ola" value={String(current.at(-1))} options={waveOptions} />
+            </>
           )}
-        </Panel>
-
-        <Panel title="Mapa de calor por ola" subtitle={`% satisfechos. Azul: sobre la meta de ${CSAT_TARGET} %. Rojo: bajo la meta.`} className="lg:col-span-3">
-          <div className="-mx-1 overflow-x-auto">
-            <table className="w-full border-separate border-spacing-1 text-sm">
-              <thead>
-                <tr>
-                  <th className="text-left font-normal text-muted-foreground" scope="col">Categoría</th>
-                  {recent.map((w) => (
-                    <th key={w.wave} scope="col" className={cn("px-1 font-normal text-muted-foreground", w.wave === cur.wave && "text-foreground")}>
-                      Ola {w.wave}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {(categories.data ?? []).map((i) => (
-                  <tr key={i.key}>
-                    <th scope="row" className="pr-2 text-left font-normal whitespace-nowrap">{i.label}</th>
-                    {recent.map((w) => {
-                      const v = w.items[i.key]?.top2;
-                      return (
-                        <td key={w.wave} className="h-9 min-w-12 rounded-md text-center tabular-nums" style={{ background: heat(v) }}>
-                          {v ?? "—"}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Panel>
+          <ParamSelect
+            param="plan"
+            label="Plan"
+            value={plan ?? ""}
+            options={[{ value: "", label: "Todos los planes" }, ...Object.entries(PLANS).map(([value, label]) => ({ value, label }))]}
+          />
+        </div>
       </div>
+
+      {!cur ? (
+        <p className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+          No hay datos para este período y plan. Prueba con otro.
+        </p>
+      ) : (
+        <>
+          <section aria-label="Indicadores" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <Kpi
+              label="NPS"
+              value={cur.nps}
+              delta={diff(cur.nps, prev?.nps)}
+              vs={vs}
+              hint={current.length === 1 ? `${cur.responded} respuestas · media 2 olas ${rolling ?? "—"}` : `${cur.responded} respuestas en ${current.length} olas`}
+            />
+            <Kpi label="CSAT global" value={cur.csat} unit="%" delta={diff(cur.csat, prev?.csat)} vs={vs} hint="% satisfechos (4–5), promedio de categorías" />
+            <Kpi label="Tasa de respuesta" value={cur.responseRate} unit="%" delta={diff(cur.responseRate, prev?.responseRate)} vs={vs} hint={`${cur.responded} de ${cur.invited} invitaciones`} />
+            <Link href={href({ seg: "pendientes" })} className="rounded-2xl border border-border bg-card p-4 transition-colors hover:border-ring/60 sm:p-5">
+              <p className="text-sm text-muted-foreground">Por contactar</p>
+              <p className="mt-2 flex items-center gap-2 text-4xl font-semibold">
+                <AnimatedNumber value={toContact.length} />
+                {toContact.length > 0 && <CircleAlert className="size-6 text-destructive" aria-label="requiere acción" />}
+              </p>
+              <p className="mt-2 text-xs text-muted-foreground">Detractores que aceptaron contacto, todas las olas</p>
+            </Link>
+          </section>
+
+          <div className="grid gap-3 lg:grid-cols-5">
+            <Panel title="NPS por ola" className="lg:col-span-3">
+              <NpsTrend data={chart} />
+            </Panel>
+            <Panel title="Promotores, pasivos y detractores" className="lg:col-span-2">
+              <Composition data={chart} />
+            </Panel>
+          </div>
+
+          <div className="grid gap-3 lg:grid-cols-5">
+            <Panel
+              title={`CSAT por categoría · ${title}`}
+              subtitle={`% satisfechos (4–5), de peor a mejor${vs ? `. Cambio ${vs}` : ""}`}
+              className="lg:col-span-2"
+            >
+              {items.length ? (
+                <ul className="flex flex-col gap-4">
+                  {items.map((i) => (
+                    <li key={i.key} className="grid grid-cols-[8.5rem_1fr_5.5rem] items-center gap-3 text-sm">
+                      <span className="truncate" title={i.label}>{i.label}</span>
+                      <span className="h-2.5 overflow-hidden rounded-full bg-muted">
+                        <span className="block h-full rounded-full bg-brand" style={{ width: `${i.now!.top2}%` }} />
+                      </span>
+                      <span className="flex items-center justify-end gap-2 tabular-nums">
+                        {i.now!.top2}%
+                        <Delta value={diff(i.now!.top2, i.before?.top2)} compact />
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground">Aún no hay notas por categoría en este período.</p>
+              )}
+            </Panel>
+
+            <Panel title="Mapa de calor por ola" subtitle={`% satisfechos. Azul: sobre la meta de ${CSAT_TARGET} %. Rojo: bajo la meta.`} className="lg:col-span-3">
+              <div className="-mx-1 overflow-x-auto">
+                <table className="w-full border-separate border-spacing-1 text-sm">
+                  <thead>
+                    <tr>
+                      <th className="text-left font-normal text-muted-foreground" scope="col">Categoría</th>
+                      {chart.map((w) => (
+                        <th
+                          key={w.wave}
+                          scope="col"
+                          className={cn("px-1 font-normal whitespace-nowrap text-muted-foreground", period === "ola" && w.wave === current[0] && "text-foreground")}
+                        >
+                          Ola {w.wave}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(categories.data ?? []).map((i) => (
+                      <tr key={i.key}>
+                        <th scope="row" className="pr-2 text-left font-normal whitespace-nowrap">{i.label}</th>
+                        {chart.map((w) => {
+                          const v = w.items[i.key]?.top2;
+                          return (
+                            <td key={w.wave} className="h-9 min-w-12 rounded-md text-center tabular-nums" style={{ background: heat(v) }}>
+                              {v ?? "—"}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Panel>
+          </div>
+        </>
+      )}
 
       <section className="flex flex-col gap-4" aria-labelledby="comentarios">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 id="comentarios" className="text-xl font-semibold font-sans">
-            {seg === "pendientes" ? "Por contactar" : `Comentarios · Ola ${cur.wave}`}
+            {seg === "pendientes" ? "Por contactar" : `Comentarios · ${title}`}
           </h2>
           <nav aria-label="Filtrar comentarios" className="flex flex-wrap gap-2">
             {Object.entries(SEGMENTS).map(([k, v]) => (
@@ -215,7 +277,7 @@ function heat(v: number | undefined) {
   return `color-mix(in oklab, ${color} ${strength}%, transparent)`;
 }
 
-function Kpi({ label, value, unit, delta, prev, hint }: { label: string; value: number | null; unit?: string; delta: number | null; prev?: number; hint: string }) {
+function Kpi({ label, value, unit, delta, vs, hint }: { label: string; value: number | null; unit?: string; delta: number | null; vs?: string; hint: string }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
       <p className="text-sm text-muted-foreground">{label}</p>
@@ -224,7 +286,7 @@ function Kpi({ label, value, unit, delta, prev, hint }: { label: string; value: 
         {value !== null && unit && <span className="text-2xl text-muted-foreground">{unit}</span>}
       </p>
       <div className="mt-2 flex flex-col gap-1 text-xs">
-        {prev && <Delta value={delta} suffix={` vs Ola ${prev}`} />}
+        {vs && <Delta value={delta} suffix={` ${vs}`} />}
         <span className="text-muted-foreground">{hint}</span>
       </div>
     </div>

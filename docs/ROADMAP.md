@@ -171,7 +171,8 @@ Falta: verlo con el seed en la base real.
   Muestra el % de satisfechos de cada pregunta.
 - [x] **Configuración** (`/admin/configuracion`): dar y quitar acceso al panel (crea la cuenta con contraseña temporal),
   cambiar la contraseña y elegir quién recibe las alertas de detractores (tabla `settings`, reemplaza `ALERT_EMAIL`)
-- [ ] **Filtros del dashboard:** una ola, varias olas, 1 mes, 3 meses, 6 meses, 1 año y total
+- [x] **Filtros del dashboard:** una ola, varias olas (desde–hasta), 1 mes, 3 meses, 6 meses, 1 año y total, con el cambio
+  frente al período anterior de igual largo; el plan pasa a una lista desplegable
 
 ---
 

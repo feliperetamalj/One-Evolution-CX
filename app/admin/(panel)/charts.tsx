@@ -100,23 +100,25 @@ export function Composition({ data }: { data: WaveSummary[] }) {
   );
 }
 
-export function WavePicker({ waves, value }: { waves: { id: number; label: string }[]; value: number }) {
+// Select que escribe su valor en la URL (?param=valor); vacío lo quita.
+export function ParamSelect({ param, label, value, options }: { param: string; label: string; value: string; options: { value: string; label: string }[] }) {
   const router = useRouter();
   const params = useSearchParams();
   return (
     <select
-      aria-label="Ola"
+      aria-label={label}
       value={value}
       onChange={(e) => {
         const p = new URLSearchParams(params);
-        p.set("ola", e.target.value);
-        router.push(`?${p}`);
+        if (e.target.value) p.set(param, e.target.value);
+        else p.delete(param);
+        router.push(`?${p}`, { scroll: false });
       }}
-      className="h-10 rounded-lg border border-input bg-input/20 px-3 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+      className="h-11 rounded-xl border border-input bg-input/20 px-3 text-base outline-none focus-visible:ring-3 focus-visible:ring-ring/50 sm:text-sm"
     >
-      {waves.map((w) => (
-        <option key={w.id} value={w.id}>
-          {w.label}
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>
+          {o.label}
         </option>
       ))}
     </select>

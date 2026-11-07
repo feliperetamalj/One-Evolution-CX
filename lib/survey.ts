@@ -111,7 +111,46 @@ export function summarize(stats: WavePlanStat[], csat: CsatStat[], plan?: string
   return list;
 }
 
-export const isEmail = (s: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s);
+// Junta varias olas en un solo resumen: suma los conteos (no promedia porcentajes).
+export function pool(stats: WavePlanStat[], csat: CsatStat[], waves: number[], plan?: string): WaveSummary | null {
+  const keep = new Set(waves);
+  const one = <T extends { wave_id: number }>(rows: T[]) => rows.filter((r) => keep.has(r.wave_id)).map((r) => ({ ...r, wave_id: 0 }));
+  return summarize(one(stats), one(csat), plan)[0] ?? null;
+}
+
+export const PERIODS = { ola: "Ola", olas: "Varias olas", "1m": "1 mes", "3m": "3 meses", "6m": "6 meses", "12m": "1 año", total: "Total" };
+export type PeriodKey = keyof typeof PERIODS;
+export type Period = { key: PeriodKey; ola?: number; desde?: number; hasta?: number };
+
+// Olas del período y las del período anterior de igual largo (para los Δ). `waves` va ordenado por id.
+export function periodWaves(p: Period, waves: { id: number; opens_at: string }[], now = new Date()) {
+  const ids = waves.map((w) => w.id);
+  const last = ids.length - 1;
+  if (p.key === "ola") {
+    const found = ids.indexOf(p.ola ?? -1);
+    const i = found >= 0 ? found : last;
+    return { current: [ids[i]], previous: ids.slice(Math.max(0, i - 1), i) };
+  }
+  if (p.key === "olas") {
+    const pick = (v: number | undefined, fallback: number) => (v !== undefined && ids.includes(v) ? v : fallback);
+    let from = pick(p.desde, ids[Math.max(0, last - 3)]);
+    let to = pick(p.hasta, ids[last]);
+    if (from > to) [from, to] = [to, from];
+    const current = ids.filter((id) => id >= from && id <= to);
+    const before = ids.filter((id) => id < from);
+    return { current, previous: before.slice(Math.max(0, before.length - current.length)) };
+  }
+  if (p.key === "total") return { current: ids, previous: [] };
+  const months = Number(p.key.slice(0, -1));
+  const ago = (n: number) => new Date(new Date(now).setMonth(now.getMonth() - n)).getTime();
+  const at = (w: { opens_at: string }) => Date.parse(w.opens_at);
+  return {
+    current: waves.filter((w) => at(w) >= ago(months)).map((w) => w.id),
+    previous: waves.filter((w) => at(w) >= ago(2 * months) && at(w) < ago(months)).map((w) => w.id),
+  };
+}
+
+export const isEmail =(s: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s);
 
 export type ClientRow ={ full_name: string; email: string | null; phone: string | null; plan: PlanKey | null };
 
