@@ -111,7 +111,9 @@ export function summarize(stats: WavePlanStat[], csat: CsatStat[], plan?: string
   return list;
 }
 
-export type ClientRow = { full_name: string; email: string | null; phone: string | null; plan: PlanKey | null };
+export const isEmail = (s: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s);
+
+export type ClientRow ={ full_name: string; email: string | null; phone: string | null; plan: PlanKey | null };
 
 const PLAN_ALIASES: Record<string, PlanKey> = {
   personal: "personal", duo: "duo", "3": "plan3", plan3: "plan3", "4": "plan4", plan4: "plan4",
@@ -130,7 +132,7 @@ export function parseClients(text: string) {
     if (i === 0 && /^nombre/i.test(name)) return;
     if (!name) return errors.push(`Línea ${i + 1}: falta el nombre`);
     const email = rawEmail.toLowerCase() || null;
-    if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return errors.push(`Línea ${i + 1}: email inválido (${rawEmail})`);
+    if (email && !isEmail(email)) return errors.push(`Línea ${i + 1}: email inválido (${rawEmail})`);
     let phone = rawPhone.replace(/\D/g, "");
     if (phone.length === 8) phone = "569" + phone; // celular sin +56 9
     if (phone.length === 9 && phone.startsWith("9")) phone = "56" + phone;

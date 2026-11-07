@@ -169,7 +169,8 @@ Falta: verlo con el seed en la base real.
 - [x] **Banco de preguntas** (`/admin/preguntas`): 8 categorías con 5 a 7 preguntas cada una (48 iniciales). El admin añade y
   quita preguntas; cada encuesta hace 1 pregunta por categoría, al azar y sin repetirle al cliente la de la vez anterior.
   Muestra el % de satisfechos de cada pregunta.
-- [ ] **Configuración:** dar y quitar acceso al panel, cambiar la contraseña y elegir quién recibe las alertas de detractores
+- [x] **Configuración** (`/admin/configuracion`): dar y quitar acceso al panel (crea la cuenta con contraseña temporal),
+  cambiar la contraseña y elegir quién recibe las alertas de detractores (tabla `settings`, reemplaza `ALERT_EMAIL`)
 - [ ] **Filtros del dashboard:** una ola, varias olas, 1 mes, 3 meses, 6 meses, 1 año y total
 
 ---

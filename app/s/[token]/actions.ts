@@ -32,8 +32,9 @@ export async function saveResponse(id: string, a: Answer, final: boolean): Promi
 }
 
 async function alertDetractor(id: string, a: Answer) {
-  const to = process.env.ALERT_EMAIL;
-  if (!to) return;
+  const { data: settings } = await db().from("settings").select("alert_emails").single<{ alert_emails: string[] }>();
+  const to = settings?.alert_emails ?? [];
+  if (!to.length) return;
   const { data } = await db()
     .from("invitations")
     .select("wave_id, plan, clients(full_name, email, phone)")

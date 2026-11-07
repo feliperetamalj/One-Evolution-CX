@@ -1,6 +1,6 @@
 import "server-only";
 
-export type Email = { to: string; subject: string; html: string };
+export type Email = { to: string | string[]; subject: string; html: string };
 
 export const esc = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);

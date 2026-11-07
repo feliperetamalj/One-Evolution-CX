@@ -157,7 +157,8 @@ shadcn Charts (Recharts) · Supabase Postgres + Auth · Resend · Vercel Cron.
 | `questions` | id, category, text, active: el banco, de 5 a 7 preguntas activas por categoría |
 | `invitation_questions` | invitation_id, category, question_id: la pregunta que le tocó a cada invitación en cada categoría |
 | `csat_scores` | invitation_id, item (= categoría), score 1–5 · FK a la pregunta asignada. Sin fila = "no aplica" |
-| `admins` | email (lista de quienes pueden ver el dashboard) |
+| `admins` | email (lista de quienes pueden ver el dashboard; se administra en Configuración) |
+| `settings` | una sola fila: alert_emails (quién recibe la alerta de detractores) |
 
 **Banco de preguntas.** Cada encuesta pregunta por las 8 categorías, 1 pregunta por categoría. La
 pregunta se asigna al abrir la ola (`assign_questions`): al azar entre las activas, sin repetirle al

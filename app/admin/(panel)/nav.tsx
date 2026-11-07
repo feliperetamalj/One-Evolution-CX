@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutDashboard, ListChecks, Users } from "lucide-react";
+import { LayoutDashboard, ListChecks, Settings, Users } from "lucide-react";
 import { MotionConfig, motion } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -10,6 +10,7 @@ const ITEMS = [
   { href: "/admin", label: "Dashboard", short: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/clientes", label: "Clientes y olas", short: "Clientes", icon: Users },
   { href: "/admin/preguntas", label: "Banco de preguntas", short: "Preguntas", icon: ListChecks },
+  { href: "/admin/configuracion", label: "Configuración", short: "Ajustes", icon: Settings },
 ];
 
 function useIsActive() {
