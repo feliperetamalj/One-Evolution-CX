@@ -4,7 +4,7 @@ import { MotionConfig } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { TransitionPanel } from "@/components/motion-primitives/transition-panel";
 import { Button } from "@/components/ui/button";
-import { CSAT_ITEMS, CSAT_SCALE, NPS_QUESTION, commentPrompt, segment, type Segment } from "@/lib/survey";
+import { CSAT_SCALE, NPS_QUESTION, commentPrompt, segment, type Segment } from "@/lib/survey";
 import { cn } from "@/lib/utils";
 import { saveResponse, type Answer, type SaveResult } from "./actions";
 
@@ -25,11 +25,13 @@ export function SurveyForm({
   id,
   firstName,
   closesAt,
+  questions,
   initial,
 }: {
   id: string;
   firstName: string;
   closesAt: string;
+  questions: { category: string; text: string }[]; // 1 por categoría
   initial: Answer | null;
 }) {
   const [step, setStep] = useState(0);
@@ -114,19 +116,19 @@ export function SurveyForm({
           en blanco.
         </p>
       </div>
-      {CSAT_ITEMS.map((item) => (
-        <fieldset key={item.key} className="flex flex-col gap-1.5">
-          <legend className="mb-3 font-medium">{item.label}</legend>
+      {questions.map((q) => (
+        <fieldset key={q.category} className="flex flex-col gap-1.5">
+          <legend className="mb-3 font-medium">{q.text}</legend>
           <div className="grid grid-cols-5 gap-2">
             {[1, 2, 3, 4, 5].map((n) => (
               <Choice
                 key={n}
-                name={item.key}
+                name={q.category}
                 value={n}
                 label={`${n}, ${CSAT_SCALE[n - 1]}`}
-                checked={a.csat[item.key] === n}
-                onSelect={() => setCsat(item.key, n)}
-                onTap={() => a.csat[item.key] === n && setCsat(item.key, null)}
+                checked={a.csat[q.category] === n}
+                onSelect={() => setCsat(q.category, n)}
+                onTap={() => a.csat[q.category] === n && setCsat(q.category, null)}
               />
             ))}
           </div>

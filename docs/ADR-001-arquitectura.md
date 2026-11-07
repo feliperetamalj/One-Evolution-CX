@@ -145,25 +145,36 @@ Si se quiere bajar más, se puede recrear el proyecto en `sa-east-1` y pasar Ver
 **Stack:** Next.js 16 (App Router, Server Actions) · Tailwind v4 + shadcn/ui · `motion` ·
 shadcn Charts (Recharts) · Supabase Postgres + Auth · Resend · Vercel Cron.
 
-**Modelo de datos** (6 tablas; el estado de cada ola se deriva de sus fechas, sin columnas de estado):
+**Modelo de datos** (el estado de cada ola se deriva de sus fechas, sin columnas de estado):
 
 | Tabla | Columnas clave |
 |---|---|
 | `clients` | id, full_name, email, phone, plan, active |
 | `waves` | id, opens_at, closes_at (una ola cada 14 días, abierta 7) |
-| `invitations` | id, wave_id, client_id, **token** único de 128 bits, plan (copia del plan al momento de invitar), sent_at, reminded_at · unique(wave_id, client_id) |
-| `responses` | invitation_id (PK), nps 0–10, comment, contact_ok, followed_up_at, created_at, updated_at |
-| `csat_scores` | invitation_id, item, score 1–5 · PK(invitation_id, item). Sin fila = "no aplica" |
-| `admins` | user_id (lista de quienes pueden ver el dashboard) |
+| `invitations` | id (= **token** aleatorio de 122 bits), wave_id, client_id, plan (copia del plan al momento de invitar), sent_at, reminded_at · unique(wave_id, client_id) |
+| `responses` | invitation_id (PK), nps 0–10, comment, contact_ok, followed_up_at, created_at |
+| `csat_categories` | key, label, position: las 8 categorías CSAT, fijas |
+| `questions` | id, category, text, active: el banco, de 5 a 7 preguntas activas por categoría |
+| `invitation_questions` | invitation_id, category, question_id: la pregunta que le tocó a cada invitación en cada categoría |
+| `csat_scores` | invitation_id, item (= categoría), score 1–5 · FK a la pregunta asignada. Sin fila = "no aplica" |
+| `admins` | email (lista de quienes pueden ver el dashboard) |
 
-**Vistas KPI** (se calculan al vuelo, el volumen no justifica materializarlas):
-`wave_kpis` (invitados, respuestas, tasa, NPS, % promotores/pasivos/detractores, CSAT global) y
-`csat_by_wave` (ola × atributo: promedio, top-2-box, n).
+**Banco de preguntas.** Cada encuesta pregunta por las 8 categorías, 1 pregunta por categoría. La
+pregunta se asigna al abrir la ola (`assign_questions`): al azar entre las activas, sin repetirle al
+cliente la que tuvo en esa categoría la vez anterior. El azar por invitación (y no una pregunta fija por
+ola) mezcla las preguntas en todas las olas, así que el CSAT de una categoría sigue siendo comparable
+entre olas. Quitar una pregunta la archiva: sus respuestas pasadas siguen contando. El texto no se edita,
+para no cambiarle el sentido a las respuestas que ya tiene.
+
+**Vistas** (se calculan al vuelo, el volumen no justifica materializarlas): `wave_plan_stats`
+(invitados, respuestas, promotores y detractores por ola y plan), `csat_stats` (ola × plan × categoría:
+n, top-2-box, suma) y `question_stats` (n y top-2-box por pregunta). Los indicadores se calculan en
+`lib/survey.ts`.
 
 **Definiciones**
 - **NPS** = % de notas 9–10 − % de notas 0–6 (rango −100 a +100).
-- **CSAT de un atributo** = % de respuestas 4–5 (top-2-box). Se muestra también el promedio 1–5.
-- **CSAT global** = promedio de los 8 top-2-box.
+- **CSAT de una categoría** = % de respuestas 4–5 (top-2-box). Se muestra también el promedio 1–5.
+- **CSAT global** = promedio de los top-2-box de las 8 categorías.
 - **Tasa de respuesta** = respuestas ÷ invitaciones de la ola.
 - **Backlog de seguimiento** = detractores que aceptaron contacto y aún no tienen `followed_up_at`.
 

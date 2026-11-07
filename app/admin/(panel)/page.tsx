@@ -6,8 +6,8 @@ import { requireAdmin } from "@/lib/auth";
 import { closeDate, isOpen, type Wave } from "@/lib/invites";
 import { db } from "@/lib/supabase";
 import {
-  CSAT_ITEMS, PLANS, segment, summarize,
-  type CsatStat, type PlanKey, type Segment, type WavePlanStat,
+  PLANS, segment, summarize,
+  type Category, type CsatStat, type PlanKey, type Segment, type WavePlanStat,
 } from "@/lib/survey";
 import { cn } from "@/lib/utils";
 import { markFollowedUp } from "../actions";
@@ -39,7 +39,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
   const seg = typeof sp.seg === "string" && sp.seg in SEGMENTS ? (sp.seg as keyof typeof SEGMENTS) : "todos";
 
   const sb = db();
-  const [stats, csat, waves, comments] = await Promise.all([
+  const [stats, csat, waves, comments, categories] = await Promise.all([
     sb.from("wave_plan_stats").select("*").returns<WavePlanStat[]>(),
     sb.from("csat_stats").select("*").returns<CsatStat[]>(),
     sb.from("waves").select("id, opens_at, closes_at").order("id").returns<Wave[]>(),
@@ -49,6 +49,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
       .order("created_at", { ascending: false })
       .limit(500)
       .returns<Comment[]>(),
+    sb.from("csat_categories").select("key, label").order("position").returns<Category[]>(),
   ]);
 
   const summary = summarize(stats.data ?? [], csat.data ?? [], plan);
@@ -69,7 +70,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
     Object.entries({ ola: String(cur.wave), plan, seg, ...next }).forEach(([k, v]) => v && v !== "todos" && p.set(k, v));
     return `?${p}`;
   };
-  const items = CSAT_ITEMS.map((i) => ({ ...i, now: cur.items[i.key], before: prev?.items[i.key] }))
+  const items = (categories.data ?? []).map((i) => ({ ...i, now: cur.items[i.key], before: prev?.items[i.key] }))
     .filter((i) => i.now)
     .sort((a, b) => a.now!.top2 - b.now!.top2);
   const recent = summary.slice(-8);
@@ -98,7 +99,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
 
       <section aria-label="Indicadores" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Kpi label="NPS" value={cur.nps} delta={diff(cur.nps, prev?.nps)} prev={prev?.wave} hint={`${cur.responded} respuestas · media 2 olas ${cur.npsRolling ?? "—"}`} />
-        <Kpi label="CSAT global" value={cur.csat} unit="%" delta={diff(cur.csat, prev?.csat)} prev={prev?.wave} hint="% satisfechos (4–5), promedio de atributos" />
+        <Kpi label="CSAT global" value={cur.csat} unit="%" delta={diff(cur.csat, prev?.csat)} prev={prev?.wave} hint="% satisfechos (4–5), promedio de categorías" />
         <Kpi label="Tasa de respuesta" value={cur.responseRate} unit="%" delta={diff(cur.responseRate, prev?.responseRate)} prev={prev?.wave} hint={`${cur.responded} de ${cur.invited} clientes`} />
         <Link href={href({ seg: "pendientes" })} className="rounded-2xl border border-border bg-card p-4 transition-colors hover:border-ring/60 sm:p-5">
           <p className="text-sm text-muted-foreground">Por contactar</p>
@@ -120,12 +121,12 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
       </div>
 
       <div className="grid gap-3 lg:grid-cols-5">
-        <Panel title={`CSAT por atributo · Ola ${cur.wave}`} subtitle="% satisfechos (4–5), de peor a mejor" className="lg:col-span-2">
+        <Panel title={`CSAT por categoría · Ola ${cur.wave}`} subtitle="% satisfechos (4–5), de peor a mejor" className="lg:col-span-2">
           {items.length ? (
             <ul className="flex flex-col gap-4">
               {items.map((i) => (
-                <li key={i.key} className="grid grid-cols-[7.5rem_1fr_5.5rem] items-center gap-3 text-sm">
-                  <span className="truncate" title={i.label}>{i.short}</span>
+                <li key={i.key} className="grid grid-cols-[8.5rem_1fr_5.5rem] items-center gap-3 text-sm">
+                  <span className="truncate" title={i.label}>{i.label}</span>
                   <span className="h-2.5 overflow-hidden rounded-full bg-muted">
                     <span className="block h-full rounded-full bg-brand" style={{ width: `${i.now!.top2}%` }} />
                   </span>
@@ -137,7 +138,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-muted-foreground">Aún no hay notas de atributos en esta ola.</p>
+            <p className="text-sm text-muted-foreground">Aún no hay notas por categoría en esta ola.</p>
           )}
         </Panel>
 
@@ -146,7 +147,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
             <table className="w-full border-separate border-spacing-1 text-sm">
               <thead>
                 <tr>
-                  <th className="text-left font-normal text-muted-foreground" scope="col">Atributo</th>
+                  <th className="text-left font-normal text-muted-foreground" scope="col">Categoría</th>
                   {recent.map((w) => (
                     <th key={w.wave} scope="col" className={cn("px-1 font-normal text-muted-foreground", w.wave === cur.wave && "text-foreground")}>
                       Ola {w.wave}
@@ -155,9 +156,9 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
                 </tr>
               </thead>
               <tbody>
-                {CSAT_ITEMS.map((i) => (
+                {(categories.data ?? []).map((i) => (
                   <tr key={i.key}>
-                    <th scope="row" className="pr-2 text-left font-normal whitespace-nowrap">{i.short}</th>
+                    <th scope="row" className="pr-2 text-left font-normal whitespace-nowrap">{i.label}</th>
                     {recent.map((w) => {
                       const v = w.items[i.key]?.top2;
                       return (

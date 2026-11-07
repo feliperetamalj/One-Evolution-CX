@@ -33,17 +33,41 @@ test("migración, respuestas e indicadores", async () => {
   const inv = await ids(wave1);
   assert.equal(Object.keys(inv).length, 5, "invita solo a clientes activos");
 
+  const bank = (await db.query<{ category: string; n: number }>(
+    "select category, count(*)::int as n from questions where active group by category",
+  )).rows;
+  assert.equal(bank.length, 8, "8 categorías con preguntas");
+  assert.ok(bank.every((c) => c.n >= 5 && c.n <= 7), "5 a 7 preguntas por categoría");
+  const asked = (await db.query<{ n: number; categories: number }>(
+    "select count(*)::int as n, count(distinct category)::int as categories from invitation_questions where invitation_id = $1",
+    [inv.Ana],
+  )).rows[0];
+  assert.deepEqual(asked, { n: 8, categories: 8 }, "1 pregunta por categoría");
+
   const save = (id: string, nps: number, csat: object = {}, comment: string | null = null, contact = false) =>
     db.query("select save_response($1, $2, $3, $4, $5)", [id, nps, JSON.stringify(csat), comment, contact]);
 
-  await save(inv.Ana, 10, { maquinas: 5, banos: 4 });
-  await save(inv.Ana, 10, { maquinas: 5, banos: 5 }); // editar reemplaza
-  await save(inv.Beto, 9, { maquinas: 3 });
+  await save(inv.Ana, 10, { equipamiento: 5, banos: 4 });
+  await save(inv.Ana, 10, { equipamiento: 5, banos: 5 }); // editar reemplaza
+  await save(inv.Beto, 9, { equipamiento: 3 });
   await save(inv.Caro, 7);
   await save(inv.Dani, 3, { banos: 1 }, "   ", true);
 
   const wave2 = await openWave();
   await save((await ids(wave2)).Ana, 0);
+  const repeated = (await db.query<{ n: number }>(`
+    select count(*)::int as n
+    from invitation_questions a join invitations ia on ia.id = a.invitation_id
+    join invitation_questions b on b.category = a.category and b.question_id = a.question_id
+    join invitations ib on ib.id = b.invitation_id and ib.client_id = ia.client_id
+    where ia.wave_id = $1 and ib.wave_id = $2`, [wave1, wave2])).rows[0].n;
+  assert.equal(repeated, 0, "no repite la pregunta de la ola anterior");
+
+  const stat = (await db.query<{ n: number; top2: number }>(`
+    select s.n, s.top2 from question_stats s
+    join invitation_questions iq on iq.question_id = s.question_id
+    where iq.invitation_id = $1 and iq.category = 'banos'`, [inv.Ana])).rows[0];
+  assert.ok(stat.n >= 1 && stat.top2 >= 1, "estadística por pregunta");
 
   const stats = async () => ({
     s: (await db.query<WavePlanStat>("select * from wave_plan_stats")).rows,
@@ -58,7 +82,7 @@ test("migración, respuestas e indicadores", async () => {
   );
   assert.equal(w1.nps, 25); // (2 − 1) / 4
   assert.equal(w1.responseRate, 80);
-  assert.deepEqual(w1.items.maquinas, { n: 2, top2: 50, avg: 4 });
+  assert.deepEqual(w1.items.equipamiento, { n: 2, top2: 50, avg: 4 });
   assert.deepEqual(w1.items.banos, { n: 2, top2: 50, avg: 3 });
   assert.equal(w1.csat, 50);
   assert.equal(w2.nps, -100);
@@ -68,8 +92,8 @@ test("migración, respuestas e indicadores", async () => {
   const dani = (await db.query<{ comment: string | null }>("select comment from responses where nps = 3")).rows[0];
   assert.equal(dani.comment, null, "comentario vacío queda en null");
 
-  await assert.rejects(save(inv.Ana, 10, { wifi: 5 }), "atributo desconocido");
-  await assert.rejects(save(inv.Ana, 10, { maquinas: 6 }), "nota CSAT fuera de rango");
+  await assert.rejects(save(inv.Ana, 10, { wifi: 5 }), "categoría desconocida");
+  await assert.rejects(save(inv.Ana, 10, { equipamiento: 6 }), "nota CSAT fuera de rango");
   await assert.rejects(save(inv.Ana, 11), "NPS fuera de rango");
 
   await db.query("update waves set opens_at = now() - interval '8 days', closes_at = now() - interval '1 day' where id = $1", [wave1]);

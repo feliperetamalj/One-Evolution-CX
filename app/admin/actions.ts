@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { authClient, requireAdmin } from "@/lib/auth";
 import { currentWave, isOpen, sendInvites } from "@/lib/invites";
 import { db, isUuid } from "@/lib/supabase";
-import { parseClients } from "@/lib/survey";
+import { QUESTIONS_PER_CATEGORY as LIMIT, parseClients } from "@/lib/survey";
 
 export async function signIn(_: string | null, form: FormData) {
   const { error } = await (await authClient()).auth.signInWithPassword({
@@ -61,5 +61,32 @@ export async function setClientActive(id: string, active: boolean) {
   await requireAdmin();
   if (!isUuid(id)) return;
   await db().from("clients").update({ active }).eq("id", id);
+  refresh();
+}
+
+const activeQuestions = async (category: string) =>
+  (await db().from("questions").select("id", { count: "exact", head: true }).eq("category", category).eq("active", true)).count ?? 0;
+
+export async function addQuestion(category: string, _: string | null, form: FormData): Promise<string | null> {
+  await requireAdmin();
+  const text = String(form.get("text") ?? "").trim().replace(/\s+/g, " ");
+  if (text.length < 5 || text.length > 160) return "La pregunta debe tener entre 5 y 160 caracteres.";
+  if ((await activeQuestions(category)) >= LIMIT.max) return `Ya hay ${LIMIT.max} preguntas: quita una antes de añadir otra.`;
+  const { error } = await db().from("questions").insert({ category, text });
+  if (error) return "No se pudo guardar la pregunta.";
+  refresh();
+  return null;
+}
+
+// Quitar archiva la pregunta (sus respuestas siguen contando); restaurar la vuelve a activar.
+export async function setQuestionActive(id: number, active: boolean) {
+  await requireAdmin();
+  if (!Number.isInteger(id)) return;
+  const sb = db();
+  const { data: q } = await sb.from("questions").select("category").eq("id", id).maybeSingle();
+  if (!q) return;
+  const n = await activeQuestions(q.category);
+  if (active ? n >= LIMIT.max : n <= LIMIT.min) return;
+  await sb.from("questions").update({ active }).eq("id", id);
   refresh();
 }

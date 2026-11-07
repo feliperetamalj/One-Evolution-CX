@@ -2,7 +2,7 @@
 
 import { brandEmail, esc, sendEmails } from "@/lib/email";
 import { db, isUuid } from "@/lib/supabase";
-import { CSAT_ITEMS, PLANS, type PlanKey } from "@/lib/survey";
+import { PLANS, type PlanKey } from "@/lib/survey";
 
 export type Answer = { nps: number; csat: Record<string, number>; comment: string; contactOk: boolean };
 export type SaveResult = { ok: true } | { ok: false; error: "closed" | "invalid" | "unknown" };
@@ -12,9 +12,8 @@ const valid = (id: string, a: Answer) =>
   Number.isInteger(a.nps) && a.nps >= 0 && a.nps <= 10 &&
   typeof a.comment === "string" && a.comment.length <= 2000 &&
   typeof a.contactOk === "boolean" &&
-  Object.entries(a.csat ?? {}).every(
-    ([k, v]) => CSAT_ITEMS.some((i) => i.key === k) && Number.isInteger(v) && v >= 1 && v <= 5,
-  );
+  // La base solo acepta categorías que se le preguntaron a esta invitación.
+  Object.entries(a.csat ?? {}).every(([k, v]) => /^[a-z]{1,30}$/.test(k) && Number.isInteger(v) && v >= 1 && v <= 5);
 
 // Se llama al pasar el NPS (para no perderlo si abandonan), al pasar los CSAT y al enviar.
 export async function saveResponse(id: string, a: Answer, final: boolean): Promise<SaveResult> {

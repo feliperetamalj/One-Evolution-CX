@@ -3,17 +3,9 @@
 export const NPS_QUESTION =
   "Del 0 al 10, ¿qué tan probable es que recomiendes ONE a un amigo o familiar?";
 
-export const CSAT_ITEMS = [
-  { key: "maquinas", label: "Estado y mantención de máquinas y equipamiento", short: "Máquinas" },
-  { key: "disponibilidad", label: "Disponibilidad del equipamiento durante tu sesión", short: "Disponibilidad" },
-  { key: "banos", label: "Limpieza y estado de baños y camarines", short: "Baños" },
-  { key: "limpieza", label: "Orden y limpieza de la sala de entrenamiento", short: "Limpieza sala" },
-  { key: "ambiente", label: "Ambiente: nivel de ruido y música", short: "Ruido y música" },
-  { key: "clima", label: "Temperatura y ventilación", short: "Temperatura" },
-  { key: "agenda", label: "Agendamiento y puntualidad de las sesiones", short: "Agenda" },
-  { key: "coach", label: "Acompañamiento y atención de tu coach", short: "Coach" },
-] as const;
-export type CsatKey = (typeof CSAT_ITEMS)[number]["key"];
+// Las categorías CSAT y sus preguntas viven en la base (csat_categories, questions).
+export type Category = { key: string; label: string };
+export const QUESTIONS_PER_CATEGORY = { min: 5, max: 7 };
 
 export const CSAT_SCALE = ["Muy insatisfecho", "Insatisfecho", "Neutral", "Satisfecho", "Muy satisfecho"];
 
@@ -65,8 +57,8 @@ export type WaveSummary = {
   nps: number | null; // −100 a 100
   npsRolling: number | null; // NPS de esta ola y la anterior juntas
   responseRate: number | null; // %
-  csat: number | null; // promedio del top-2-box de los atributos, %
-  items: Partial<Record<CsatKey, { n: number; top2: number; avg: number }>>; // top2 en %, avg 1–5
+  csat: number | null; // promedio del top-2-box de las categorías, %
+  items: Record<string, { n: number; top2: number; avg: number }>; // por categoría; top2 en %, avg 1–5
 };
 
 const pct = (part: number, total: number) => (total ? Math.round((100 * part) / total) : null);
@@ -101,7 +93,7 @@ export function summarize(stats: WavePlanStat[], csat: CsatStat[], plan?: string
   }
   for (const [k, { n, top2, sum }] of itemSums) {
     const [id, item] = k.split(":");
-    wave(Number(id)).items[item as CsatKey] = { n, top2: pct(top2, n)!, avg: Math.round((sum / n) * 10) / 10 };
+    wave(Number(id)).items[item] ={ n, top2: pct(top2, n)!, avg: Math.round((sum / n) * 10) / 10 };
   }
 
   const list = [...waves.values()].sort((a, b) => a.wave - b.wave);

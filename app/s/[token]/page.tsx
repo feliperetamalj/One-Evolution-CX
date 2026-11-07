@@ -11,6 +11,7 @@ type Invitation = {
   clients: { full_name: string };
   waves: { closes_at: string };
   responses: { nps: number; comment: string | null; contact_ok: boolean; csat_scores: { item: string; score: number }[] } | null;
+  invitation_questions: { category: string; questions: { text: string }; csat_categories: { position: number } }[];
 };
 
 export default function Page({ params }: PageProps<"/s/[token]">) {
@@ -29,7 +30,9 @@ async function Survey({ params }: { params: Promise<{ token: string }> }) {
   const { data: inv } = isUuid(token)
     ? await db()
         .from("invitations")
-        .select("clients(full_name), waves(closes_at), responses(nps, comment, contact_ok, csat_scores(item, score))")
+        .select(
+          "clients(full_name), waves(closes_at), responses(nps, comment, contact_ok, csat_scores(item, score)), invitation_questions(category, questions(text), csat_categories(position))",
+        )
         .eq("id", token)
         .maybeSingle<Invitation>()
     : { data: null };
@@ -62,6 +65,9 @@ async function Survey({ params }: { params: Promise<{ token: string }> }) {
       id={token}
       firstName={inv.clients.full_name.split(" ")[0]}
       closesAt={closeDate(inv.waves.closes_at)}
+      questions={inv.invitation_questions
+        .sort((a, b) => a.csat_categories.position - b.csat_categories.position)
+        .map((q) => ({ category: q.category, text: q.questions.text }))}
       initial={initial}
     />
   );
