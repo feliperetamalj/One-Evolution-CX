@@ -36,7 +36,7 @@ Cada etapa termina en algo desplegado y verificable. No se avanza a la siguiente
 - [x] Proyecto Supabase en la organización de ONE (quedó en us-west-2; Vercel en `pdx1` para estar junto a la base). Hoy tiene datos ficticios: limpiar antes del piloto
 - [x] Proyecto Vercel `one-cx` (región `pdx1`), desplegado en https://one-cx.vercel.app por CLI
 - [x] Variables de entorno de producción cargadas en Vercel
-- [ ] Conectar Vercel al repo de GitHub
+- [x] Vercel conectado al repo de GitHub: cada push a `main` publica en producción
 - [ ] Cuenta Resend y dominio verificado (SPF/DKIM en el DNS de `oneevolution.cl`)
 - [x] Tokens de marca en `app/globals.css` (contraste WCAG AA verificado):
   - Fondo `#0B0B0B` · superficie `#141414` · texto hueso `#EDEDE8` · gris `#9A9A9A` · acento arena `#C8A97E` (el de la app)

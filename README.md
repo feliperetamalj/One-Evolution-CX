@@ -26,6 +26,7 @@ npm test      # migración real en Postgres embebido + indicadores + importador 
 
 ## Operación
 
+- **Deploy:** cada push a `main` en GitHub publica en producción (https://one-cx.vercel.app) vía Vercel.
 - **Base de datos:** `supabase/migrations/` (esquema) y `supabase/seed.sql` (datos ficticios, solo dev).
 - **Admins:** crear el usuario en Supabase → Authentication → Add user (email + contraseña) y
   agregar su email a la tabla `admins` (`insert into admins values ('ceo@oneevolution.cl')`).
