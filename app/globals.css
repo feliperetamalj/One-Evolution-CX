@@ -8,6 +8,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-brand: var(--brand);
+  --color-success: var(--success);
   --font-sans: var(--font-sans);
   --font-heading: var(--font-oswald);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -68,6 +69,7 @@
   --accent: #1f1f1f;
   --accent-foreground: #edede8;
   --destructive: #f87171;
+  --success: #0ca30c; /* 5.5:1 sobre card */
   --border: rgb(255 255 255 / 10%);
   --input: rgb(255 255 255 / 14%);
   --ring: #c8a97e;

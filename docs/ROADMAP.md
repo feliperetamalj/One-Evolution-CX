@@ -33,9 +33,10 @@ Cada etapa termina en algo desplegado y verificable. No se avanza a la siguiente
 - [x] `git init` (repositorio local)
 - [ ] Repositorio privado en GitHub
 - [x] Proyecto Next.js 16 + Tailwind v4 + shadcn/ui (estilo base `power` de design-styles)
-- [ ] 2 proyectos Supabase en `sa-east-1` (`one-cx-dev` y `one-cx-prod`; el plan Free permite 2), en una organización propia de ONE. En dev no hace falta Docker
-- [x] Proyecto Vercel `one-cx` (región `gru1`), desplegado en https://one-cx.vercel.app por CLI
-- [ ] Conectar Vercel al repo de GitHub y cargar las variables de entorno de Supabase
+- [x] Proyecto Supabase en la organización de ONE (quedó en us-west-2; Vercel en `pdx1` para estar junto a la base). Hoy tiene datos ficticios: limpiar antes del piloto
+- [x] Proyecto Vercel `one-cx` (región `pdx1`), desplegado en https://one-cx.vercel.app por CLI
+- [x] Variables de entorno de producción cargadas en Vercel
+- [ ] Conectar Vercel al repo de GitHub
 - [ ] Cuenta Resend y dominio verificado (SPF/DKIM en el DNS de `oneevolution.cl`)
 - [x] Tokens de marca en `app/globals.css` (contraste WCAG AA verificado):
   - Fondo `#0B0B0B` · superficie `#141414` · texto hueso `#EDEDE8` · gris `#9A9A9A` · acento arena `#C8A97E` (el de la app)
@@ -50,11 +51,14 @@ Cada etapa termina en algo desplegado y verificable. No se avanza a la siguiente
 
 **Objetivo:** el modelo del ADR en migraciones SQL, con los KPIs calculados por la base de datos.
 
-- [ ] Migración con `clients`, `waves`, `invitations`, `responses`, `csat_scores` y `admins`, más restricciones `CHECK`
-- [ ] RLS en todas las tablas: `anon` sin acceso; `authenticated` solo lectura y solo si está en `admins`
-- [ ] Vistas `wave_kpis` y `csat_by_wave`
-- [ ] Seed con 40 clientes ficticios y 4 olas de respuestas, para construir el dashboard sin datos reales
-- [ ] **Un** test SQL: un set de respuestas conocido produce el NPS y el CSAT esperados
+- [x] Migración con `clients`, `waves`, `invitations`, `responses`, `csat_scores` y `admins`, más restricciones `CHECK`
+- [x] RLS en todas las tablas y permisos revocados a `anon`/`authenticated`: todo pasa por el servidor con la secret key
+- [x] Vistas `wave_plan_stats` y `csat_stats` (conteos por ola y plan); los indicadores se calculan en `lib/survey.ts`
+- [x] Funciones `open_wave()` y `save_response()` (valida que la ola siga abierta)
+- [x] Seed con 40 clientes ficticios y 4 olas (caída de "Baños" en la ola 3)
+- [x] Test (`npm test`): corre la migración real en Postgres embebido (PGlite) y verifica NPS, CSAT, rechazos y el importador CSV
+- [x] Migraciones y seed aplicados en Supabase con la CLI; advisors de seguridad sin observaciones
+- [x] Verificado contra Supabase: la key publicable recibe "permission denied" en tablas, vistas y funciones
 
 **Listo cuando:** `supabase db reset` levanta todo desde cero y el test pasa.
 
@@ -67,8 +71,10 @@ Cada etapa termina en algo desplegado y verificable. No se avanza a la siguiente
 **Flujo (3 pantallas + agradecimiento):**
 
 1. **NPS:** "Del 0 al 10, ¿qué tan probable es que recomiendes ONE a un amigo o familiar?"
-   Un toque guarda la nota y avanza. El NPS queda guardado aunque el cliente abandone la encuesta.
-2. **CSAT:** "¿Qué tan satisfecho/a estás con…?" Ocho filas compactas con escala de 1 a 5; cualquier fila se puede dejar en blanco (= no aplica).
+   Botones coloreados por segmento (0–6 rojo, 7–8 verde claro, 9–10 verde fuerte). Tocar solo selecciona; "Continuar"
+   guarda la nota y avanza. El NPS queda guardado aunque el cliente abandone la encuesta.
+2. **CSAT:** "¿Qué tan satisfecho/a estás con…?" y una descripción breve de qué se evalúa. Ocho filas compactas con
+   escala de 1 a 5, con "Muy insatisfecho" bajo el 1 y "Muy satisfecho" bajo el 5; cualquier fila se puede dejar en blanco (= no aplica).
 
    | Clave | Atributo |
    |---|---|
@@ -97,6 +103,10 @@ Cada etapa termina en algo desplegado y verificable. No se avanza a la siguiente
 - Ola cerrada → "Esta encuesta ya cerró; te llegará la próxima en 2 semanas".
 - Encuesta ya respondida → se puede editar hasta que cierre la ola.
 
+**Estado:** construida (`app/s/[token]`). Verificado en navegador móvil: NPS en 2 filas, se avanza con "Continuar",
+tocar de nuevo quita una nota CSAT. Probada de punta a punta con la base real:
+guardado, agradecimiento, edición, ola cerrada y link inválido.
+
 **Listo cuando:**
 - Se completa en menos de 60 segundos en un móvil.
 - Las zonas táctiles miden al menos 44 px.
@@ -109,6 +119,9 @@ Cada etapa termina en algo desplegado y verificable. No se avanza a la siguiente
 ## Etapa 3: Olas automáticas y envíos
 
 **Objetivo:** cero trabajo manual cada 14 días.
+
+**Estado:** construida (`app/api/cron`, `lib/invites.ts`, `/admin/clientes`). La primera ola se abre a mano;
+el cron toma la posta. Falta: probar con la base real, configurar Resend + DNS y el respaldo semanal.
 
 - [ ] Admin de clientes: importar CSV y activar/desactivar clientes (CRUD mínimo)
 - [ ] Vercel Cron diario (~10:00 hora de Chile) que llama a `/api/cron`:
@@ -129,6 +142,11 @@ Cada etapa termina en algo desplegado y verificable. No se avanza a la siguiente
 ## Etapa 4: Dashboard del CEO (`/admin`)
 
 **Objetivo:** que el CEO responda en menos de 10 segundos *"¿cómo vamos frente a la ola anterior y qué empeoró?"*.
+
+**Estado:** construida (`/admin`). Paleta de gráficos validada con la skill dataviz (par divergente azul↔rojo
+con gris neutro; etiquetas en cada segmento porque el gris queda en 2,9:1). El gráfico de NPS es de una sola
+serie: la media de 2 olas va en la tarjeta y el tooltip, porque como segunda línea no se distinguía.
+Falta: verlo con el seed en la base real.
 
 - [ ] Login con magic link, restringido a quienes están en `admins`
 - [ ] **Fila de KPIs** (cada uno con su Δ respecto de la ola anterior y el *n*): NPS, CSAT global, tasa de respuesta y detractores pendientes de seguimiento

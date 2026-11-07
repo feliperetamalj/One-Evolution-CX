@@ -137,6 +137,11 @@ de detractores. Los envíos son manuales y el dashboard queda limitado.
 
 ## Diseño técnico (resumen)
 
+**Región (cambio en la implementación):** el proyecto de Supabase quedó creado en **us-west-2 (Oregón)**, no en
+São Paulo. Las funciones de Vercel corren en `pdx1` (Portland), junto a la base, para que las consultas
+no crucen el continente. La única latencia larga es usuario↔servidor (~0,6 s por página medida desde Chile).
+Si se quiere bajar más, se puede recrear el proyecto en `sa-east-1` y pasar Vercel a `gru1`.
+
 **Stack:** Next.js 16 (App Router, Server Actions) · Tailwind v4 + shadcn/ui · `motion` ·
 shadcn Charts (Recharts) · Supabase Postgres + Auth · Resend · Vercel Cron.
 
@@ -166,7 +171,12 @@ shadcn Charts (Recharts) · Supabase Postgres + Auth · Resend · Vercel Cron.
 - RLS activo en todas las tablas y **ninguna política para `anon`**.
 - La encuesta se lee y escribe solo desde Server Actions con la service role key, que nunca llega
   al navegador.
-- El dashboard exige sesión de Supabase Auth (magic link) y que el usuario esté en `admins`.
+- El dashboard exige sesión de Supabase Auth y que el usuario esté en `admins`. Se verifica en **cada
+  página y Server Action**, no en el layout: en el App Router layout y página se renderizan en paralelo
+  y al navegar solo se pide la página.
+- *Cambio en la implementación:* login con email + contraseña en vez de magic link, porque el SMTP por
+  defecto de Supabase solo envía a miembros del equipo. El magic link se puede activar cuando Resend
+  esté configurado como SMTP propio.
 - Restricciones `CHECK` en la base de datos como última barrera de validación.
 - El token da acceso solo a su propia invitación y caduca cuando cierra la ola.
 

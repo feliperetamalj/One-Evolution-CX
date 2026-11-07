@@ -8,4 +8,26 @@ Encuesta quincenal (NPS + 8 CSAT + comentarios) y dashboard del CEO para ONE Evo
 ```bash
 npm install
 npm run dev   # http://localhost:3000
+
+npm test      # migración real en Postgres embebido + indicadores + importador CSV
 ```
+
+## Variables de entorno
+
+| Variable | Para qué |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Login del panel (Supabase Auth) |
+| `SUPABASE_SECRET_KEY` | Acceso a datos desde el servidor (nunca al navegador) |
+| `APP_URL` | Base de los links personales (`/s/<id>`) |
+| `RESEND_API_KEY`, `EMAIL_FROM` | Envío de encuestas y alertas. Sin key, la app funciona y avisa en los logs |
+| `ALERT_EMAIL` | Quién recibe la alerta de detractores (el CEO) |
+| `CRON_SECRET` | Protege `/api/cron` (Vercel lo envía solo) |
+| `EMAIL_DAILY_LIMIT` | Opcional, por defecto 100 (Resend Free) |
+
+## Operación
+
+- **Base de datos:** `supabase/migrations/` (esquema) y `supabase/seed.sql` (datos ficticios, solo dev).
+- **Admins:** crear el usuario en Supabase → Authentication → Add user (email + contraseña) y
+  agregar su email a la tabla `admins` (`insert into admins values ('ceo@oneevolution.cl')`).
+- **Olas:** la primera se abre desde `/admin/clientes`; luego el cron diario abre una cada 14 días,
+  envía los emails pendientes y un recordatorio al día 3.
