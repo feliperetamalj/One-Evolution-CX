@@ -105,7 +105,8 @@ export function Chip({ href, active, children }: { href: string; active: boolean
 
 export function Panel({ title, subtitle, className, children }: { title: string; subtitle?: string; className?: string; children: React.ReactNode }) {
   return (
-    <section className={cn("flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 sm:p-5", className)}>
+    // min-w-0: dentro de una grilla, deja que el panel se achique y su contenido ancho (el mapa de calor) haga scroll.
+    <section className={cn("flex min-w-0 flex-col gap-4 rounded-2xl border border-border bg-card p-4 sm:p-5", className)}>
       <div>
         <h2 className="text-base font-semibold font-sans">{title}</h2>
         {subtitle && <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>}

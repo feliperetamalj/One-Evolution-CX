@@ -143,12 +143,7 @@ export function CsatTrend({ data, categories, target }: { data: WaveSummary[]; c
           <CartesianGrid vertical={false} stroke="var(--border)" />
           <XAxis dataKey="ola" {...axis} />
           <YAxis domain={[lo, 100]} tickFormatter={(v) => `${v}%`} width={44} {...axis} />
-          <ReferenceLine
-            y={target}
-            stroke="var(--muted-foreground)"
-            strokeDasharray="4 4"
-            label={{ value: `Meta ${target} %`, position: "insideBottomRight", fill: "var(--muted-foreground)", fontSize: 11 }}
-          />
+          <ReferenceLine y={target} stroke="var(--muted-foreground)" strokeDasharray="4 4" />
           <ChartTooltip cursor={{ stroke: "var(--muted-foreground)", strokeWidth: 1 }} content={<CsatTip />} />
           {shown.map((c) => (
             <Line
