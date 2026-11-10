@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutDashboard, ListChecks, LoaderCircle, Settings, Users } from "lucide-react";
+import { LayoutDashboard, ListChecks, LoaderCircle, MessageSquareText, Settings, Users } from "lucide-react";
 import { MotionConfig, motion } from "motion/react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 
 const ITEMS = [
   { href: "/admin", label: "Dashboard", short: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin/comentarios", label: "Comentarios", short: "Comentarios", icon: MessageSquareText },
   { href: "/admin/clientes", label: "Clientes y olas", short: "Clientes", icon: Users },
   { href: "/admin/preguntas", label: "Banco de preguntas", short: "Preguntas", icon: ListChecks },
   { href: "/admin/configuracion", label: "Configuración", short: "Ajustes", icon: Settings },

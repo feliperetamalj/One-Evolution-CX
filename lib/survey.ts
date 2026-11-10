@@ -150,6 +150,32 @@ export function periodWaves(p: Period, waves: { id: number; opens_at: string }[]
   };
 }
 
+// Temas de un comentario: palabras clave (sin tildes) por categoría CSAT, así se cruzan con las notas.
+// ponytail: no entiende negaciones ni palabras nuevas; si se queda corto, clasificar con un LLM al guardar la respuesta.
+const THEME_PATTERNS: Record<string, RegExp> = {
+  equipamiento: /maquina|equip|pesa|mancuerna|barra|disco|trotadora|bicicleta|implemento/,
+  limpieza: /limpi|sucio|aseo|olor|polvo|higiene/,
+  banos: /bano|camarin|ducha|agua caliente|locker|casillero/,
+  ambiente: /musica|calor|frio|ventila|aire|temperatura|ruido|ambiente|llen[oa]|espacio/,
+  coach: /coach|profe|entrenador|instructor/,
+  entrenamiento: /rutina|planifica|ejercicio|sesion|entrenamiento|progres/,
+  agenda: /horario|agenda|reagend|reserva|cupo|puntual|empez\w* tarde|atras|cancel/,
+  atencion: /atencion|recepcion|whatsapp|pago|cobro|precio|respond/,
+};
+export const plain = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+export const themesOf = (text: string) => Object.keys(THEME_PATTERNS).filter((k) => THEME_PATTERNS[k].test(plain(text)));
+
+// Close the loop. Un caso = cliente que aceptó contacto y es detractor o fue marcado por el admin.
+export type CaseFields = { nps: number; contact_ok: boolean; flagged: boolean; followed_up_at: string | null; closed_at: string | null; created_at: string };
+export type CaseStatus = "pendiente" | "contactado" | "cerrado";
+export const CASE_STATUS: Record<CaseStatus, string> = { pendiente: "Por contactar", contactado: "En seguimiento", cerrado: "Cerrado" };
+export const CONTACT_SLA_HOURS = 48; // meta: contactar a cada detractor en menos de 48 h
+export const isCase = (r: CaseFields) => r.contact_ok && (r.nps <= 6 || r.flagged);
+export const caseStatus = (r: CaseFields): CaseStatus => (r.closed_at ? "cerrado" : r.followed_up_at ? "contactado" : "pendiente");
+export const hoursSince = (iso: string, now = Date.now()) => (now - Date.parse(iso)) / 36e5;
+export const hoursAgo = (h: number) => new Date(Date.now() - h * 36e5).toISOString();
+export const isOverdue = (r: CaseFields, now = Date.now()) => caseStatus(r) === "pendiente" && hoursSince(r.created_at, now) > CONTACT_SLA_HOURS;
+
 export const isEmail =(s: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s);
 
 export type ClientRow ={ full_name: string; email: string | null; phone: string | null; plan: PlanKey | null };

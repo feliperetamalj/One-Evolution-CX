@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import { authClient, requireAdmin } from "@/lib/auth";
 import { currentWave, isOpen, sendInvites } from "@/lib/invites";
 import { db, isUuid } from "@/lib/supabase";
-import { QUESTIONS_PER_CATEGORY as LIMIT, isEmail, parseClients } from "@/lib/survey";
+import { CASE_STATUS, QUESTIONS_PER_CATEGORY as LIMIT, isEmail, parseClients, type CaseStatus } from "@/lib/survey";
 
 export type FormResult = { ok?: string; error?: string; password?: string } | null;
 
@@ -25,11 +25,39 @@ export async function signOut() {
   redirect("/admin/login");
 }
 
-export async function markFollowedUp(invitationId: string) {
+// Close the loop: mueve un caso entre por contactar → en seguimiento → cerrado (o lo devuelve).
+export async function setCaseStatus(invitationId: string, status: CaseStatus) {
+  await requireAdmin();
+  if (!isUuid(invitationId) || !Object.hasOwn(CASE_STATUS, status)) return;
+  const now = new Date().toISOString();
+  const set = (patch: object) => db().from("responses").update(patch).eq("invitation_id", invitationId);
+  if (status === "pendiente") await set({ followed_up_at: null, closed_at: null });
+  if (status === "cerrado") await set({ closed_at: now });
+  if (status === "contactado") {
+    // Reabrir un caso cerrado conserva la fecha del primer contacto, que mide el tiempo de respuesta.
+    await set({ closed_at: null });
+    await set({ followed_up_at: now }).is("followed_up_at", null);
+  }
+  refresh();
+}
+
+// Suma (o quita) del seguimiento a un pasivo o promotor que aceptó contacto. Los detractores entran solos.
+export async function flagCase(invitationId: string, flagged: boolean) {
   await requireAdmin();
   if (!isUuid(invitationId)) return;
-  await db().from("responses").update({ followed_up_at: new Date().toISOString() }).eq("invitation_id", invitationId);
+  await db().from("responses").update({ flagged: Boolean(flagged) }).eq("invitation_id", invitationId).eq("contact_ok", true);
   refresh();
+}
+
+export async function saveCaseNote(invitationId: string, _: FormResult, form: FormData): Promise<FormResult> {
+  await requireAdmin();
+  if (!isUuid(invitationId)) return { error: "Caso inválido." };
+  const note = String(form.get("note") ?? "").trim();
+  if (note.length > 1000) return { error: "Máximo 1000 caracteres." };
+  const { error } = await db().from("responses").update({ followup_note: note || null }).eq("invitation_id", invitationId);
+  if (error) return { error: "No se pudo guardar la nota." };
+  refresh();
+  return { ok: "Nota guardada." };
 }
 
 export async function openWaveNow(): Promise<string> {

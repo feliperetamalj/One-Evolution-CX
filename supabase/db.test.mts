@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
-import { parseClients, periodWaves, pool, summarize, type CsatStat, type WavePlanStat } from "../lib/survey.ts";
+import { caseStatus, isCase, isOverdue, parseClients, periodWaves, pool, summarize, themesOf, type CsatStat, type WavePlanStat } from "../lib/survey.ts";
 
 const dir = new URL("./migrations/", import.meta.url);
 const migrations = readdirSync(dir).sort().map((f) => readFileSync(new URL(f, dir), "utf8"));
@@ -98,6 +98,12 @@ test("migración, respuestas e indicadores", async () => {
   const dani = (await db.query<{ comment: string | null }>("select comment from responses where nps = 3")).rows[0];
   assert.equal(dani.comment, null, "comentario vacío queda en null");
 
+  await db.query("update responses set followed_up_at = now(), followup_note = 'Llamado' where invitation_id = $1", [inv.Dani]);
+  await save(inv.Dani, 4, {}, null, true); // el cliente edita su respuesta mientras la ola sigue abierta
+  const loop = (await db.query("select flagged, followup_note, followed_up_at is not null as followed from responses where invitation_id = $1", [inv.Dani])).rows[0];
+  assert.deepEqual(loop, { flagged: false, followup_note: "Llamado", followed: true }, "editar la respuesta no borra el seguimiento");
+  await assert.rejects(db.query("update responses set followup_note = repeat('x', 1001)"), "nota de máximo 1000");
+
   await assert.rejects(save(inv.Ana, 10, { wifi: 5 }), "categoría desconocida");
   await assert.rejects(save(inv.Ana, 10, { equipamiento: 6 }), "nota CSAT fuera de rango");
   await assert.rejects(save(inv.Ana, 11), "NPS fuera de rango");
@@ -126,6 +132,24 @@ test("olas de cada período y del período anterior", () => {
   assert.deepEqual(p("3m").previous, [1, 2, 3, 4, 5]);
   assert.deepEqual(p("12m"), { current: waves.map((w) => w.id), previous: [] });
   assert.deepEqual(p("total"), { current: waves.map((w) => w.id), previous: [] });
+});
+
+test("temas de los comentarios y estado de los casos", () => {
+  assert.deepEqual(themesOf("Los baños estaban sucios"), ["limpieza", "banos"]);
+  assert.deepEqual(themesOf("Mi clase empezó tarde varias veces"), ["agenda"]);
+  assert.deepEqual(themesOf("Hace mucho calor en la sala en la tarde"), ["ambiente"]);
+  assert.deepEqual(themesOf("Todo excelente"), []);
+
+  const c = { nps: 3, contact_ok: true, flagged: false, followed_up_at: null, closed_at: null, created_at: "2026-11-01T00:00:00Z" };
+  assert.ok(isCase(c));
+  assert.ok(!isCase({ ...c, contact_ok: false }), "sin permiso de contacto no es caso");
+  assert.ok(!isCase({ ...c, nps: 8 }));
+  assert.ok(isCase({ ...c, nps: 8, flagged: true }), "pasivo marcado por el admin");
+  assert.equal(caseStatus(c), "pendiente");
+  assert.ok(isOverdue(c, Date.parse("2026-11-04T00:00:00Z")), "72 h sin contacto");
+  assert.ok(!isOverdue(c, Date.parse("2026-11-02T00:00:00Z")), "24 h sin contacto");
+  assert.equal(caseStatus({ ...c, followed_up_at: "2026-11-02T00:00:00Z" }), "contactado");
+  assert.equal(caseStatus({ ...c, followed_up_at: "2026-11-02T00:00:00Z", closed_at: "2026-11-03T00:00:00Z" }), "cerrado");
 });
 
 test("importar clientes desde CSV de Excel", () => {

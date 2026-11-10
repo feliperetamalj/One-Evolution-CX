@@ -31,5 +31,6 @@ npm test      # migración real en Postgres embebido + indicadores + importador 
   contraseña temporal), se cambia la contraseña y se elige quién recibe las alertas de detractores.
   El primer admin se crea a mano: Supabase → Authentication → Add user, y su email en la tabla `admins`.
 - **Preguntas:** el banco se edita en `/admin/preguntas`; los cambios corren desde la próxima ola.
+- **Comentarios y seguimiento:** en `/admin/comentarios` (análisis por tema y close the loop de detractores).
 - **Olas:** la primera se abre desde `/admin/clientes`; luego el cron diario abre una cada 14 días,
   envía los emails pendientes y un recordatorio al día 3.

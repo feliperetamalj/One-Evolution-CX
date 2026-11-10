@@ -1,97 +1,54 @@
-import { ArrowDown, ArrowUp, CircleAlert } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowRight, CircleAlert } from "lucide-react";
 import Link from "next/link";
 import { AnimatedNumber } from "@/components/motion-primitives/animated-number";
-import { Button } from "@/components/ui/button";
 import { requireAdmin } from "@/lib/auth";
-import { closeDate, isOpen, type Wave } from "@/lib/invites";
+import type { Wave } from "@/lib/invites";
 import { db } from "@/lib/supabase";
-import {
-  PERIODS, PLANS, periodWaves, pool, segment, summarize,
-  type Category, type CsatStat, type PeriodKey, type PlanKey, type Segment, type WavePlanStat,
-} from "@/lib/survey";
+import { CONTACT_SLA_HOURS, hoursAgo, pool, segment, summarize, themesOf, type Category, type CsatStat, type WavePlanStat } from "@/lib/survey";
 import { cn } from "@/lib/utils";
-import { markFollowedUp } from "../actions";
-import { Composition, NpsTrend, ParamSelect, SEGMENT_COLORS } from "./charts";
+import { Composition, NpsTrend, SEGMENT_COLORS } from "./charts";
+import { SEG_COLOR, SEG_LABEL } from "./comentarios/card";
+import { Panel, PeriodFilter, PeriodRange, readFilters } from "./ui";
 
 const CSAT_TARGET = 80; // % de satisfechos (4–5) que ONE considera "bien"; centro del mapa de calor
 
-type Comment = {
-  invitation_id: string;
-  nps: number;
-  comment: string | null;
-  contact_ok: boolean;
-  followed_up_at: string | null;
-  created_at: string;
-  invitations: { wave_id: number; plan: PlanKey | null; clients: { full_name: string; email: string | null; phone: string | null } };
-};
-
-const SEGMENTS = { todos: "Todos", pendientes: "Por contactar", detractor: "Detractores", pasivo: "Pasivos", promotor: "Promotores" } as const;
-const SEG_LABEL: Record<Segment, string> = { detractor: "Detractor", pasivo: "Pasivo", promotor: "Promotor" };
-const SEG_COLOR: Record<Segment, string> = { detractor: SEGMENT_COLORS.detractores, pasivo: SEGMENT_COLORS.pasivos, promotor: SEGMENT_COLORS.promotores };
-const MONTHS: Record<Exclude<PeriodKey, "ola" | "olas">, { title: string; vs?: string }> = {
-  "1m": { title: "Último mes", vs: "vs mes anterior" },
-  "3m": { title: "Últimos 3 meses", vs: "vs 3 meses anteriores" },
-  "6m": { title: "Últimos 6 meses", vs: "vs 6 meses anteriores" },
-  "12m": { title: "Último año", vs: "vs año anterior" },
-  total: { title: "Todas las olas" },
-};
-
-const day = (iso: string) => new Date(iso).toLocaleDateString("es-CL", { day: "numeric", month: "short", timeZone: "America/Santiago" });
-const pending = (c: Comment) => c.nps <= 6 && c.contact_ok && !c.followed_up_at;
-const span = (ids: number[]) => (ids.length === 1 ? `Ola ${ids[0]}` : `Olas ${ids[0]} a ${ids.at(-1)}`);
+type Comment = { invitation_id: string; nps: number; comment: string; created_at: string; invitations: { wave_id: number } };
 
 export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
   await requireAdmin();
   const sp = await searchParams;
-  const str = (k: string) => (typeof sp[k] === "string" ? sp[k] : undefined);
-  const num = (k: string) => (/^\d+$/.test(str(k) ?? "") ? Number(str(k)) : undefined);
-  const pick = <T extends object>(o: T, k: string) => (Object.hasOwn(o, str(k) ?? "") ? (str(k) as keyof T) : undefined);
-  const plan = pick(PLANS, "plan");
-  const seg = pick(SEGMENTS, "seg") ?? "todos";
-  const period = pick(PERIODS, "periodo") ?? "ola";
-
   const sb = db();
-  const [stats, csat, waves, comments, categories] = await Promise.all([
+  // Casos del close the loop sin contactar (todas las olas): aceptaron contacto y son detractores o marcados.
+  const openCases = () =>
+    sb.from("responses").select("invitation_id", { count: "exact", head: true })
+      .eq("contact_ok", true).or("nps.lte.6,flagged.is.true").is("followed_up_at", null).is("closed_at", null);
+  const [stats, csat, waves, categories, toContact, overdue] = await Promise.all([
     sb.from("wave_plan_stats").select("*").returns<WavePlanStat[]>(),
     sb.from("csat_stats").select("*").returns<CsatStat[]>(),
     sb.from("waves").select("id, opens_at, closes_at").order("id").returns<Wave[]>(),
-    sb.from("responses")
-      .select("invitation_id, nps, comment, contact_ok, followed_up_at, created_at, invitations!inner(wave_id, plan, clients(full_name, email, phone))")
-      .or("comment.not.is.null,and(nps.lte.6,contact_ok.is.true)")
-      .order("created_at", { ascending: false })
-      .limit(500)
-      .returns<Comment[]>(),
     sb.from("csat_categories").select("key, label").order("position").returns<Category[]>(),
+    openCases(),
+    openCases().lt("created_at", hoursAgo(CONTACT_SLA_HOURS)),
   ]);
 
   const allWaves = waves.data ?? [];
+  const f = readFilters(sp, allWaves);
+  const { plan, period, current, previous, title, vs } = f;
   const summary = summarize(stats.data ?? [], csat.data ?? [], plan);
   if (!summary.length || !allWaves.length) return <Empty />;
 
-  const { current, previous } = periodWaves({ key: period, ola: num("ola"), desde: num("desde"), hasta: num("hasta") }, allWaves);
+  let commentsQuery = sb.from("responses").select("invitation_id, nps, comment, created_at, invitations!inner(wave_id)")
+    .not("comment", "is", null).in("invitations.wave_id", current);
+  if (plan) commentsQuery = commentsQuery.eq("invitations.plan", plan);
+  const comments = (await commentsQuery.order("created_at", { ascending: false }).limit(1000).returns<Comment[]>()).data ?? [];
+
   const cur = pool(stats.data ?? [], csat.data ?? [], current, plan);
   const prev = pool(stats.data ?? [], csat.data ?? [], previous, plan);
-  const byWave = period === "ola" || period === "olas";
-  const title = byWave ? span(current) : MONTHS[period].title;
-  const vs = previous.length ? (byWave ? `vs ${span(previous)}` : MONTHS[period].vs) : undefined;
-  const inPeriod = allWaves.filter((w) => current.includes(w.id));
-  const last = inPeriod.at(-1);
   // Una ola: se ve en contexto con las 7 anteriores. Un período: sus olas.
   const chart = period === "ola" ? summary.filter((w) => w.wave <= current[0]).slice(-8) : summary.filter((w) => current.includes(w.wave));
-
-  const byPlan = (comments.data ?? []).filter((c) => !plan || c.invitations.plan === plan);
-  const toContact = byPlan.filter(pending);
-  const list = seg === "pendientes"
-    ? toContact
-    : byPlan.filter((c) => current.includes(c.invitations.wave_id) && (seg === "todos" || segment(c.nps) === seg));
-
-  const href = (next: Record<string, string | undefined>) => {
-    const p = new URLSearchParams();
-    Object.entries({ periodo: period, ola: str("ola"), desde: str("desde"), hasta: str("hasta"), plan, seg, ...next })
-      .forEach(([k, v]) => v && v !== "todos" && !(k === "periodo" && v === "ola") && p.set(k, v));
-    return `?${p}`;
-  };
-  const waveOptions = [...allWaves].reverse().map((w) => ({ value: String(w.id), label: `Ola ${w.id} · ${day(w.opens_at)}` }));
+  const labels = Object.fromEntries((categories.data ?? []).map((c) => [c.key, c.label]));
+  const pending = toContact.count ?? 0;
+  const late = overdue.count ?? 0;
   const items = (categories.data ?? []).map((i) => ({ ...i, now: cur?.items[i.key], before: prev?.items[i.key] }))
     .filter((i) => i.now)
     .sort((a, b) => a.now!.top2 - b.now!.top2);
@@ -102,39 +59,11 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
       <header className="flex flex-col gap-2">
         <p className="text-eyebrow text-brand">Experiencia de clientes</p>
         <h1 className="text-display !text-4xl">{title}</h1>
-        {last && (
-          <p className="text-sm text-muted-foreground">
-            {!byWave && `${span(current)} · `}
-            {day(inPeriod[0].opens_at)} – {day(last.closes_at)}
-            {isOpen(last) && <span className="ml-2 rounded-full bg-brand/15 px-2 py-0.5 text-brand">En curso · cierra el {closeDate(last.closes_at)}</span>}
-          </p>
-        )}
+        <PeriodRange f={f} waves={allWaves} />
       </header>
 
-      <div className="-mt-2 flex flex-col gap-3">
-        <nav aria-label="Período" className="flex flex-wrap gap-2">
-          {Object.entries(PERIODS).map(([k, v]) => (
-            <Chip key={k} href={href({ periodo: k })} active={period === k}>
-              {v}
-            </Chip>
-          ))}
-        </nav>
-        <div className="flex flex-wrap items-center gap-2">
-          {period === "ola" && <ParamSelect param="ola" label="Ola" value={String(current[0])} options={waveOptions} />}
-          {period === "olas" && (
-            <>
-              <ParamSelect param="desde" label="Desde la ola" value={String(current[0])} options={waveOptions} />
-              <span className="text-sm text-muted-foreground">a</span>
-              <ParamSelect param="hasta" label="Hasta la ola" value={String(current.at(-1))} options={waveOptions} />
-            </>
-          )}
-          <ParamSelect
-            param="plan"
-            label="Plan"
-            value={plan ?? ""}
-            options={[{ value: "", label: "Todos los planes" }, ...Object.entries(PLANS).map(([value, label]) => ({ value, label }))]}
-          />
-        </div>
+      <div className="-mt-2">
+        <PeriodFilter f={f} waves={allWaves} />
       </div>
 
       {!cur ? (
@@ -153,13 +82,16 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
             />
             <Kpi label="CSAT global" value={cur.csat} unit="%" delta={diff(cur.csat, prev?.csat)} vs={vs} hint="% satisfechos (4–5), promedio de categorías" />
             <Kpi label="Tasa de respuesta" value={cur.responseRate} unit="%" delta={diff(cur.responseRate, prev?.responseRate)} vs={vs} hint={`${cur.responded} de ${cur.invited} invitaciones`} />
-            <Link href={href({ seg: "pendientes" })} className="rounded-2xl border border-border bg-card p-4 transition-colors hover:border-ring/60 sm:p-5">
+            <Link href="/admin/comentarios?vista=seguimiento" className="rounded-2xl border border-border bg-card p-4 transition-colors hover:border-ring/60 sm:p-5">
               <p className="text-sm text-muted-foreground">Por contactar</p>
               <p className="mt-2 flex items-center gap-2 text-4xl font-semibold">
-                <AnimatedNumber value={toContact.length} />
-                {toContact.length > 0 && <CircleAlert className="size-6 text-destructive" aria-label="requiere acción" />}
+                <AnimatedNumber value={pending} />
+                {pending > 0 && <CircleAlert className="size-6 text-destructive" aria-label="requiere acción" />}
               </p>
-              <p className="mt-2 text-xs text-muted-foreground">Detractores que aceptaron contacto, todas las olas</p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                {late ? <span className="text-destructive">{late} atrasados (más de {CONTACT_SLA_HOURS} h). </span> : null}
+                Close the loop, todas las olas →
+              </p>
             </Link>
           </section>
 
@@ -237,32 +169,68 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
         </>
       )}
 
-      <section className="flex flex-col gap-4" aria-labelledby="comentarios">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h2 id="comentarios" className="text-xl font-semibold font-sans">
-            {seg === "pendientes" ? "Por contactar" : `Comentarios · ${title}`}
-          </h2>
-          <nav aria-label="Filtrar comentarios" className="flex flex-wrap gap-2">
-            {Object.entries(SEGMENTS).map(([k, v]) => (
-              <Chip key={k} href={href({ seg: k })} active={seg === k}>
-                {v}
-              </Chip>
-            ))}
-          </nav>
-        </div>
-        {list.length ? (
-          <ul className="grid gap-3 md:grid-cols-2">
-            {list.map((c) => (
-              <CommentCard key={c.invitation_id} c={c} />
-            ))}
-          </ul>
-        ) : (
-          <p className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-            {seg === "pendientes" ? "No hay detractores pendientes de contacto." : "No hay comentarios con este filtro."}
-          </p>
-        )}
-      </section>
+      {cur && <CommentsSummary comments={comments} labels={labels} responded={cur.responded} title={title} href={f.href({}, "/admin/comentarios")} />}
     </div>
+  );
+}
+
+// Resumen para el dashboard: los temas más mencionados y los últimos comentarios. El análisis completo está en Comentarios.
+function CommentsSummary({ comments, labels, responded, title, href }: { comments: Comment[]; labels: Record<string, string>; responded: number; title: string; href: string }) {
+  const tagged = comments.map((c) => ({ c, themes: themesOf(c.comment) }));
+  const top = Object.keys(labels)
+    .map((k) => {
+      const hits = tagged.filter((t) => t.themes.includes(k));
+      return { key: k, total: hits.length, detractors: hits.filter((t) => segment(t.c.nps) === "detractor").length };
+    })
+    .filter((t) => t.total)
+    .sort((a, b) => b.detractors - a.detractors || b.total - a.total)
+    .slice(0, 3);
+  return (
+    <Panel
+      title={`Lo que dicen los clientes · ${title}`}
+      subtitle={`${comments.length} comentarios de ${responded} respuestas`}
+    >
+      {comments.length ? (
+        <div className="grid gap-6 lg:grid-cols-[1fr_2fr]">
+          <div className="flex flex-col gap-2">
+            <h3 className="text-sm text-muted-foreground">Temas con más menciones de detractores</h3>
+            <ol className="flex flex-col gap-2 text-sm">
+              {top.map((t) => (
+                <li key={t.key} className="flex items-baseline justify-between gap-3">
+                  <span>{labels[t.key]}</span>
+                  <span className="text-muted-foreground tabular-nums">
+                    {t.total} menciones · <span className={cn(t.detractors > 0 && "text-destructive")}>{t.detractors} de detractores</span>
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="text-sm text-muted-foreground">Últimos comentarios</h3>
+            <ul className="flex flex-col divide-y divide-border">
+              {comments.slice(0, 3).map((c) => {
+                const s = segment(c.nps);
+                return (
+                  <li key={c.invitation_id} className="flex items-start gap-3 py-2 text-sm">
+                    <span className="mt-0.5 inline-flex shrink-0 items-center gap-1.5 tabular-nums text-muted-foreground" title={SEG_LABEL[s]}>
+                      <span className="size-2 rounded-full" style={{ background: SEG_COLOR[s] }} aria-hidden />
+                      <span className="sr-only">{SEG_LABEL[s]}</span>
+                      {c.nps}
+                    </span>
+                    <p className="line-clamp-2 text-pretty">“{c.comment}”</p>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground">No hay comentarios en este período.</p>
+      )}
+      <Link href={href} className="inline-flex items-center gap-1.5 self-start text-sm text-brand underline-offset-4 hover:underline">
+        Ver todos los comentarios y su análisis <ArrowRight className="size-4" aria-hidden />
+      </Link>
+    </Panel>
   );
 }
 
@@ -305,78 +273,6 @@ function Delta({ value, suffix = "", compact }: { value: number | null; suffix?:
       {Math.abs(value)}
       {compact ? "" : ` pts${suffix}`}
     </span>
-  );
-}
-
-function Panel({ title, subtitle, className, children }: { title: string; subtitle?: string; className?: string; children: React.ReactNode }) {
-  return (
-    <section className={cn("flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 sm:p-5", className)}>
-      <div>
-        <h2 className="text-base font-semibold font-sans">{title}</h2>
-        {subtitle && <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function Chip({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
-  return (
-    <Link
-      href={href}
-      aria-current={active ? "page" : undefined}
-      scroll={false}
-      className={cn(
-        "rounded-full border px-3 py-1.5 text-sm transition-colors",
-        active ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground hover:text-foreground",
-      )}
-    >
-      {children}
-    </Link>
-  );
-}
-
-function CommentCard({ c }: { c: Comment }) {
-  const s = segment(c.nps);
-  const who = c.invitations.clients;
-  return (
-    <li className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-        <span className="inline-flex items-center gap-1.5 font-medium">
-          <span className="size-2 rounded-full" style={{ background: SEG_COLOR[s] }} aria-hidden />
-          {SEG_LABEL[s]} · {c.nps}/10
-        </span>
-        <span className="text-muted-foreground">
-          {c.invitations.plan ? PLANS[c.invitations.plan] : "Sin plan"} · Ola {c.invitations.wave_id} · {day(c.created_at)}
-        </span>
-      </div>
-      {c.comment && <p className="text-pretty">“{c.comment}”</p>}
-      <div className="mt-auto flex flex-wrap items-center justify-between gap-2 text-sm">
-        {c.contact_ok ? (
-          <span>
-            {who.full_name}
-            {who.phone && (
-              <a href={`https://wa.me/${who.phone}`} className="ml-2 text-brand underline-offset-4 hover:underline">
-                WhatsApp
-              </a>
-            )}
-            {who.email && (
-              <a href={`mailto:${who.email}`} className="ml-2 text-brand underline-offset-4 hover:underline">
-                Email
-              </a>
-            )}
-          </span>
-        ) : (
-          <span className="text-muted-foreground">Cliente confidencial</span>
-        )}
-        {pending(c) && (
-          <form action={markFollowedUp.bind(null, c.invitation_id)}>
-            <Button size="sm" variant="secondary">Marcar como contactado</Button>
-          </form>
-        )}
-        {c.followed_up_at && <span className="text-muted-foreground">Contactado el {day(c.followed_up_at)}</span>}
-      </div>
-    </li>
   );
 }
 

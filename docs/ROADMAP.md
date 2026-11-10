@@ -173,6 +173,11 @@ Falta: verlo con el seed en la base real.
   cambiar la contraseña y elegir quién recibe las alertas de detractores (tabla `settings`, reemplaza `ALERT_EMAIL`)
 - [x] **Filtros del dashboard:** una ola, varias olas (desde–hasta), 1 mes, 3 meses, 6 meses, 1 año y total, con el cambio
   frente al período anterior de igual largo; el plan pasa a una lista desplegable
+- [x] **Comentarios** (`/admin/comentarios`), debajo de Dashboard. Vista *Comentarios*: filtros de período, plan,
+  segmento, tema y texto; temas por segmento cruzados con el CSAT de la categoría; cada comentario muestra sus temas
+  y las categorías que el cliente calificó con 1 o 2. Vista *Close the loop*: casos por contactar, en seguimiento y
+  cerrados, con nota, % contactados en menos de 48 h y tiempo mediano al primer contacto. El dashboard deja solo un
+  resumen (temas con más menciones de detractores y últimos comentarios).
 
 ---
 

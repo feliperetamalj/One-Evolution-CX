@@ -152,7 +152,7 @@ shadcn Charts (Recharts) · Supabase Postgres + Auth · Resend · Vercel Cron.
 | `clients` | id, full_name, email, phone, plan, active |
 | `waves` | id, opens_at, closes_at (una ola cada 14 días, abierta 7) |
 | `invitations` | id (= **token** aleatorio de 122 bits), wave_id, client_id, plan (copia del plan al momento de invitar), sent_at, reminded_at · unique(wave_id, client_id) |
-| `responses` | invitation_id (PK), nps 0–10, comment, contact_ok, followed_up_at, created_at |
+| `responses` | invitation_id (PK), nps 0–10, comment, contact_ok, followed_up_at, created_at; seguimiento: flagged, followup_note, closed_at |
 | `csat_categories` | key, label, position: las 8 categorías CSAT, fijas |
 | `questions` | id, category, text, active: el banco, de 5 a 7 preguntas activas por categoría |
 | `invitation_questions` | invitation_id, category, question_id: la pregunta que le tocó a cada invitación en cada categoría |
@@ -179,7 +179,12 @@ n, top-2-box, suma) y `question_stats` (n y top-2-box por pregunta). Los indicad
 - **Períodos** (varias olas, 1, 3, 6 o 12 meses, total): se suman los conteos de las olas del período en
   vez de promediar sus porcentajes. El cambio se compara con el período anterior de igual largo.
 - **Tasa de respuesta** = respuestas ÷ invitaciones de la ola.
-- **Backlog de seguimiento** = detractores que aceptaron contacto y aún no tienen `followed_up_at`.
+- **Close the loop.** Un *caso* es una respuesta con `contact_ok` que es detractor (0–6) o que el admin marcó
+  (`flagged`). Estado: *por contactar* (sin `followed_up_at`) → *en seguimiento* → *cerrado* (`closed_at`), con una
+  nota (`followup_note`). Meta: primer contacto en menos de 48 h desde la respuesta; un caso por contactar con más
+  de 48 h está *atrasado*.
+- **Temas de un comentario** = palabras clave por categoría CSAT (`themesOf` en `lib/survey.ts`), para cruzar lo
+  que dicen los clientes con sus notas. Si se queda corto, clasificar con un LLM al guardar la respuesta.
 
 **Seguridad**
 - RLS activo en todas las tablas y **ninguna política para `anon`**.
