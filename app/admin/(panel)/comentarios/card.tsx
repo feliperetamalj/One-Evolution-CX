@@ -5,7 +5,7 @@ import {
 } from "@/lib/survey";
 import { cn } from "@/lib/utils";
 import { flagCase, setCaseStatus } from "../../actions";
-import { SEGMENT_COLORS } from "../charts";
+import { SEGMENT_COLORS } from "../colors";
 import { day } from "../ui";
 import { CaseNote } from "./forms";
 
@@ -21,6 +21,7 @@ export const REPLY_FIELDS =
   "invitations!inner(wave_id, plan, clients(full_name, email, phone)), csat_scores(item, score)";
 
 export const SEG_LABEL: Record<Segment, string> = { detractor: "Detractor", pasivo: "Pasivo", promotor: "Promotor" };
+export const SEG_PLURAL: Record<Segment, string> = { detractor: "Detractores", pasivo: "Pasivos", promotor: "Promotores" };
 export const SEG_COLOR: Record<Segment, string> = { detractor: SEGMENT_COLORS.detractores, pasivo: SEGMENT_COLORS.pasivos, promotor: SEGMENT_COLORS.promotores };
 
 const ago = (iso: string) => {
@@ -120,7 +121,7 @@ function StatusBadge({ r }: { r: Reply }) {
 function Act({ action, children, variant = "secondary" }: { action: () => Promise<void>; children: React.ReactNode; variant?: "secondary" | "ghost" | "default" }) {
   return (
     <form action={action}>
-      <Button variant={variant}>{children}</Button>
+      <Button type="submit" variant={variant}>{children}</Button>
     </form>
   );
 }

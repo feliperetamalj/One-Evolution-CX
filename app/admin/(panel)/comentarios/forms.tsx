@@ -19,7 +19,7 @@ export function CaseNote({ id, note }: { id: string; note: string | null }) {
         className="w-full resize-y rounded-xl border border-input bg-input/20 px-3 py-2 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 sm:text-sm"
       />
       <div className="flex items-center gap-3">
-        <Button variant="outline" disabled={pending}>
+        <Button type="submit" variant="outline" disabled={pending}>
           {pending ? "Guardando…" : "Guardar nota"}
         </Button>
         {result && (

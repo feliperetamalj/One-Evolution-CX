@@ -4,10 +4,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Bar, BarChart, CartesianGrid, LabelList, Line, LineChart, ReferenceLine, XAxis, YAxis } from "recharts";
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
 import type { WaveSummary } from "@/lib/survey";
+import { SEGMENT_COLORS } from "./colors";
 
-// Paleta validada con dataviz/validate_palette.js sobre #141414 (par divergente azul↔rojo, gris neutro).
-// El gris queda en 2.9:1, por eso cada segmento lleva etiqueta y hay leyenda + tooltip.
-export const SEGMENT_COLORS = { detractores: "#e66767", pasivos: "#606059", promotores: "#3987e5" };
 
 const axis = { tickLine: false, axisLine: false, tickMargin: 8, fontSize: 12 } as const;
 

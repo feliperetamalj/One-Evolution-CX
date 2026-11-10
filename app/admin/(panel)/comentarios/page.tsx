@@ -10,7 +10,7 @@ import {
 } from "@/lib/survey";
 import { cn } from "@/lib/utils";
 import { Chip, Panel, PeriodFilter, PeriodRange, readFilters, type Filters } from "../ui";
-import { REPLY_FIELDS, ReplyCard, SEG_COLOR, SEG_LABEL, type Reply } from "./card";
+import { REPLY_FIELDS, ReplyCard, SEG_COLOR, SEG_PLURAL, type Reply } from "./card";
 
 const VIEWS = { comentarios: "Comentarios", seguimiento: "Close the loop" } as const;
 const SEGMENTS = { todos: "Todos", detractor: "Detractores", pasivo: "Pasivos", promotor: "Promotores" } as const;
@@ -131,7 +131,7 @@ async function Analysis({ f, waves, labels, categories, pending }: { f: Filters;
             {ORDER.map((s) => (
               <li key={s} className="inline-flex items-center gap-1.5">
                 <span className="size-2 rounded-full" style={{ background: SEG_COLOR[s] }} aria-hidden />
-                {SEG_LABEL[s]}s <span className="tabular-nums text-muted-foreground">{total[s]}</span>
+                {SEG_PLURAL[s]} <span className="tabular-nums text-muted-foreground">{total[s]}</span>
               </li>
             ))}
           </ul>
@@ -153,7 +153,7 @@ async function Analysis({ f, waves, labels, categories, pending }: { f: Filters;
               {ORDER.map((s) => (
                 <li key={s} className="inline-flex items-center gap-1.5">
                   <span className="size-2 rounded-full" style={{ background: SEG_COLOR[s] }} />
-                  {SEG_LABEL[s]}s
+                  {SEG_PLURAL[s]}
                 </li>
               ))}
             </ul>

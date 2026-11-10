@@ -6,7 +6,8 @@ import type { Wave } from "@/lib/invites";
 import { db } from "@/lib/supabase";
 import { CONTACT_SLA_HOURS, hoursAgo, pool, segment, summarize, themesOf, type Category, type CsatStat, type WavePlanStat } from "@/lib/survey";
 import { cn } from "@/lib/utils";
-import { Composition, NpsTrend, SEGMENT_COLORS } from "./charts";
+import { Composition, NpsTrend } from "./charts";
+import { SEGMENT_COLORS } from "./colors";
 import { SEG_COLOR, SEG_LABEL } from "./comentarios/card";
 import { Panel, PeriodFilter, PeriodRange, readFilters } from "./ui";
 

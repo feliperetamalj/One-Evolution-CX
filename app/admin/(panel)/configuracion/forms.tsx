@@ -28,7 +28,7 @@ export function AddAdmin() {
     <div className="flex flex-col gap-3">
       <form action={action} className="flex gap-2">
         <input name="email" type="email" required autoComplete="off" aria-label="Email" placeholder="nombre@oneevolution.cl" className={input} />
-        <Button disabled={pending} className="shrink-0">
+        <Button type="submit" disabled={pending} className="shrink-0">
           {pending ? "Dando acceso…" : "Dar acceso"}
         </Button>
       </form>
@@ -90,7 +90,7 @@ export function AlertEmails({ emails }: { emails: string[] }) {
         className="w-full rounded-xl border border-input bg-input/20 px-3 py-2.5 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 sm:text-sm"
       />
       <div className="flex flex-wrap items-center gap-3">
-        <Button disabled={pending}>{pending ? "Guardando…" : "Guardar"}</Button>
+        <Button type="submit" disabled={pending}>{pending ? "Guardando…" : "Guardar"}</Button>
         <Status result={result} />
       </div>
     </form>
@@ -114,7 +114,7 @@ export function ChangePassword() {
         <input name="confirm" type="password" required minLength={8} autoComplete="new-password" className={input} />
       </label>
       <div className="flex flex-wrap items-center gap-3">
-        <Button disabled={pending}>{pending ? "Cambiando…" : "Cambiar contraseña"}</Button>
+        <Button type="submit" disabled={pending}>{pending ? "Cambiando…" : "Cambiar contraseña"}</Button>
         <Status result={result} />
       </div>
     </form>

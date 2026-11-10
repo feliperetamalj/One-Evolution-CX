@@ -18,7 +18,7 @@ export function AddQuestion({ category, label }: { category: string; label: stri
           placeholder="Completa: ¿Qué tan satisfecho/a estás con…?"
           className="h-11 min-w-0 flex-1 rounded-xl border border-input bg-input/20 px-3 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 sm:text-sm"
         />
-        <Button disabled={pending}>{pending ? "Añadiendo…" : "Añadir"}</Button>
+        <Button type="submit" disabled={pending}>{pending ? "Añadiendo…" : "Añadir"}</Button>
       </div>
       {error && (
         <p role="alert" className="text-sm text-destructive">

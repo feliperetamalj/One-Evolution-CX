@@ -8,7 +8,7 @@ export function OpenWave({ disabled }: { disabled: boolean }) {
   const [msg, action, pending] = useActionState(openWaveNow, null);
   return (
     <form action={action} className="flex flex-col items-start gap-2">
-      <Button size="lg" disabled={disabled || pending}>
+      <Button type="submit" size="lg" disabled={disabled || pending}>
         {pending ? "Abriendo y enviando…" : "Abrir ola ahora"}
       </Button>
       {msg && (
@@ -37,7 +37,7 @@ export function ImportClients() {
         className="w-full rounded-xl border border-input bg-input/20 px-4 py-3 font-mono text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
       />
       <div className="flex flex-wrap items-center gap-3">
-        <Button disabled={pending}>{pending ? "Importando…" : "Importar clientes"}</Button>
+        <Button type="submit" disabled={pending}>{pending ? "Importando…" : "Importar clientes"}</Button>
         {msg && (
           <p role="status" className="text-sm whitespace-pre-line text-muted-foreground">
             {msg}
