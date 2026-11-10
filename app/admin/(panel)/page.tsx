@@ -197,9 +197,9 @@ function CommentsSummary({ comments, labels, responded, title, href }: { comment
             <h3 className="text-sm text-muted-foreground">Temas con más menciones de detractores</h3>
             <ol className="flex flex-col gap-2 text-sm">
               {top.map((t) => (
-                <li key={t.key} className="flex items-baseline justify-between gap-3">
+                <li key={t.key} className="flex flex-col">
                   <span>{labels[t.key]}</span>
-                  <span className="text-muted-foreground tabular-nums">
+                  <span className="text-xs text-muted-foreground tabular-nums">
                     {t.total} menciones · <span className={cn(t.detractors > 0 && "text-destructive")}>{t.detractors} de detractores</span>
                   </span>
                 </li>

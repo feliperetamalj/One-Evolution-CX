@@ -165,7 +165,7 @@ async function Analysis({ f, waves, labels, categories, pending }: { f: Filters;
                     scroll={false}
                     aria-current={tema === t.key ? "true" : undefined}
                     className={cn(
-                      "grid grid-cols-[7.5rem_1fr_auto] items-center gap-3 rounded-lg px-2 py-2 text-sm transition-colors hover:bg-muted sm:grid-cols-[10rem_1fr_9rem]",
+                      "grid grid-cols-[8.5rem_1fr_auto] items-center gap-3 rounded-lg px-2 py-2 text-sm transition-colors hover:bg-muted sm:grid-cols-[10rem_1fr_9rem]",
                       tema === t.key && "bg-muted",
                     )}
                   >
@@ -261,7 +261,7 @@ function Clear({ href, children }: { href: string; children: React.ReactNode }) 
 function Loop({ cases, labels }: { cases: Reply[]; labels: Record<string, string> }) {
   const of = (s: ReturnType<typeof caseStatus>) => cases.filter((c) => caseStatus(c) === s);
   const pending = of("pendiente"); // los más antiguos primero
-  const following = of("contactado");
+  const following = of("contactado").sort((a, b) => b.followed_up_at!.localeCompare(a.followed_up_at!)); // el último contactado arriba
   const closed = of("cerrado").sort((a, b) => b.closed_at!.localeCompare(a.closed_at!));
   const late = pending.filter((c) => isOverdue(c)).length;
 
@@ -289,7 +289,7 @@ function Loop({ cases, labels }: { cases: Reply[]; labels: Record<string, string
 
       <div className="grid items-start gap-6 lg:grid-cols-3">
         <Column title="Por contactar" hint="Los más antiguos primero" items={pending} labels={labels} empty="Nadie esperando contacto." />
-        <Column title="En seguimiento" items={following} labels={labels} empty="No hay casos abiertos." />
+        <Column title="En seguimiento" hint="Contactados recién primero" items={following} labels={labels} empty="No hay casos abiertos." />
         <Column
           title="Cerrados"
           hint={closed.length > 20 ? `Los 20 más recientes de ${closed.length}` : undefined}
