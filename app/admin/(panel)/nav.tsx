@@ -1,8 +1,8 @@
 "use client";
 
-import { LayoutDashboard, ListChecks, Settings, Users } from "lucide-react";
+import { LayoutDashboard, ListChecks, LoaderCircle, Settings, Users } from "lucide-react";
 import { MotionConfig, motion } from "motion/react";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +16,12 @@ const ITEMS = [
 function useIsActive() {
   const path = usePathname();
   return (href: string) => (href === "/admin" ? path === href : path.startsWith(href));
+}
+
+// Spinner del ítem tocado mientras la sección no está precargada; siempre montado para no mover el layout.
+function Pending({ className }: { className?: string }) {
+  const { pending } = useLinkStatus();
+  return <LoaderCircle aria-hidden className={cn("size-4 transition-opacity", pending ? "animate-spin opacity-100" : "opacity-0", className)} />;
 }
 
 // Escritorio: menú vertical; el fondo del ítem activo se desliza al cambiar de página.
@@ -45,6 +51,7 @@ export function SideNav() {
               )}
               <Icon className={cn("relative size-5 shrink-0", active && "text-brand")} aria-hidden />
               <span className="relative">{label}</span>
+              <Pending className="relative ml-auto text-muted-foreground" />
             </Link>
           );
         })}
@@ -69,12 +76,13 @@ export function TabBar() {
             href={href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "flex h-16 flex-1 flex-col items-center justify-center gap-1 text-xs font-medium transition-colors",
+              "relative flex h-16 flex-1 flex-col items-center justify-center gap-1 text-xs font-medium transition-colors",
               active ? "text-foreground" : "text-muted-foreground",
             )}
           >
             <Icon className={cn("size-5", active && "text-brand")} aria-hidden />
             {short}
+            <Pending className="absolute top-2 right-[calc(50%-1.5rem)] size-3.5 text-muted-foreground" />
           </Link>
         );
       })}

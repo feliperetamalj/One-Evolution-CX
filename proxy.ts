@@ -15,8 +15,9 @@ export async function proxy(request: NextRequest) {
       },
     },
   });
-  const { data } = await supabase.auth.getUser();
-  if (!data.user && request.nextUrl.pathname !== "/admin/login") {
+  // getClaims refresca la sesión si expiró y valida el JWT localmente (sin ida y vuelta a Supabase Auth).
+  const { data } = await supabase.auth.getClaims();
+  if (!data?.claims && request.nextUrl.pathname !== "/admin/login") {
     return NextResponse.redirect(new URL("/admin/login", request.url));
   }
   return response;

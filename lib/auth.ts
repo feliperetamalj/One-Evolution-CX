@@ -23,8 +23,9 @@ export async function authClient() {
 
 // Para páginas y Server Actions del panel: exige sesión y que el email esté en `admins`.
 export async function requireAdmin() {
-  const { data } = await (await authClient()).auth.getUser();
-  const email = data.user?.email?.toLowerCase();
+  // getClaims verifica la firma del JWT (ES256) con la clave pública en caché, sin ir a Supabase Auth.
+  const { data } = await (await authClient()).auth.getClaims();
+  const email = data?.claims.email?.toLowerCase();
   if (!email) redirect("/admin/login");
   const { data: admin } = await db().from("admins").select("email").eq("email", email).maybeSingle();
   if (!admin) redirect("/admin/login?e=sin-acceso");

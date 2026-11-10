@@ -1,6 +1,5 @@
 import { LogOut } from "lucide-react";
 import Link from "next/link";
-import { Suspense } from "react";
 import { Logo } from "@/components/logo";
 import { signOut } from "../actions";
 import { SideNav, TabBar } from "./nav";
@@ -36,8 +35,8 @@ export default function PanelLayout({ children }: LayoutProps<"/admin">) {
 
       <main className="mx-auto w-full max-w-6xl px-4 pt-6 pb-28 sm:px-6 md:px-10 md:pt-10 md:pb-16">
         {/* Sin verificación aquí: layout y página se renderizan en paralelo y al navegar solo se pide la página.
-            Cada página llama a requireAdmin(). */}
-        <Suspense fallback={<p className="text-muted-foreground">Cargando…</p>}>{children}</Suspense>
+            Cada página llama a requireAdmin(). El estado de carga vive en loading.tsx. */}
+        {children}
       </main>
 
       <TabBar />
