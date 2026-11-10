@@ -6,8 +6,8 @@ import type { Wave } from "@/lib/invites";
 import { db } from "@/lib/supabase";
 import { CONTACT_SLA_HOURS, hoursAgo, pool, segment, summarize, themesOf, type Category, type CsatStat, type WavePlanStat } from "@/lib/survey";
 import { cn } from "@/lib/utils";
-import { Composition, NpsTrend } from "./charts";
-import { SEGMENT_COLORS } from "./colors";
+import { Composition, CsatTrend, NpsTrend } from "./charts";
+import { CATEGORY_COLORS, SEGMENT_COLORS } from "./colors";
 import { SEG_COLOR, SEG_LABEL } from "./comentarios/card";
 import { Panel, PeriodFilter, PeriodRange, readFilters } from "./ui";
 
@@ -104,6 +104,17 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
               <Composition data={chart} />
             </Panel>
           </div>
+
+          <Panel
+            title="CSAT por ola"
+            subtitle={`% satisfechos (4–5) por categoría. Con todas visibles, toca una para verla sola; después suma o quita otras. Línea punteada: meta de ${CSAT_TARGET} %.`}
+          >
+            <CsatTrend
+              data={chart}
+              categories={(categories.data ?? []).map((c, i) => ({ ...c, color: CATEGORY_COLORS[i] ?? "#9a9a9a" }))}
+              target={CSAT_TARGET}
+            />
+          </Panel>
 
           <div className="grid gap-3 lg:grid-cols-5">
             <Panel
