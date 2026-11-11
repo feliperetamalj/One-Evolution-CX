@@ -1,4 +1,6 @@
+import { ArrowDown, ArrowUp } from "lucide-react";
 import Link from "next/link";
+import { AnimatedNumber } from "@/components/motion-primitives/animated-number";
 import { closeDate, isOpen, type Wave } from "@/lib/invites";
 import { PERIODS, PLANS, periodWaves, type PeriodKey } from "@/lib/survey";
 import { cn } from "@/lib/utils";
@@ -42,8 +44,11 @@ export function readFilters(sp: SearchParams, waves: Wave[]) {
   return { str, pick, plan, period, current, previous, byWave, title, vs, href };
 }
 
+export const waveOptions = (waves: Wave[]) => [...waves].reverse().map((w) => ({ value: String(w.id), label: `Ola ${w.id} · ${day(w.opens_at)}` }));
+export const planOptions = [{ value: "", label: "Todos los planes" }, ...Object.entries(PLANS).map(([value, label]) => ({ value, label }))];
+
 export function PeriodFilter({ f, waves }: { f: Filters; waves: Wave[] }) {
-  const options = [...waves].reverse().map((w) => ({ value: String(w.id), label: `Ola ${w.id} · ${day(w.opens_at)}` }));
+  const options = waveOptions(waves);
   return (
     <div className="flex flex-col gap-3">
       <nav aria-label="Período" className="flex flex-wrap gap-2">
@@ -62,12 +67,7 @@ export function PeriodFilter({ f, waves }: { f: Filters; waves: Wave[] }) {
             <ParamSelect param="hasta" label="Hasta la ola" value={String(f.current.at(-1))} options={options} />
           </>
         )}
-        <ParamSelect
-          param="plan"
-          label="Plan"
-          value={f.plan ?? ""}
-          options={[{ value: "", label: "Todos los planes" }, ...Object.entries(PLANS).map(([value, label]) => ({ value, label }))]}
-        />
+        <ParamSelect param="plan" label="Plan" value={f.plan ?? ""} options={planOptions} />
       </div>
     </div>
   );
@@ -113,5 +113,47 @@ export function Panel({ title, subtitle, className, children }: { title: string;
       </div>
       {children}
     </section>
+  );
+}
+
+export const diff = (a: number | null, b: number | null | undefined) => (a === null || b === null || b === undefined ? null : a - b);
+
+// Tarjeta de indicador; con `href` toda la tarjeta es un enlace al detalle.
+export function Kpi({ label, value, unit, delta, vs, hint, href }: { label: string; value: number | null; unit?: string; delta: number | null; vs?: string; hint: string; href?: string }) {
+  const body = (
+    <>
+      <p className="text-sm text-muted-foreground">{label}</p>
+      <p className="mt-2 text-4xl font-semibold">
+        {value === null ? "—" : <AnimatedNumber value={value} />}
+        {value !== null && unit && <span className="text-2xl text-muted-foreground">{unit}</span>}
+      </p>
+      <div className="mt-2 flex flex-col gap-1 text-xs">
+        {vs && <Delta value={delta} suffix={` ${vs}`} />}
+        <span className="text-muted-foreground">{hint}</span>
+      </div>
+    </>
+  );
+  const box = "block rounded-2xl border border-border bg-card p-4 sm:p-5";
+  return href ? (
+    <Link href={href} className={cn(box, "transition-colors hover:border-ring/60")}>
+      {body}
+    </Link>
+  ) : (
+    <div className={box}>{body}</div>
+  );
+}
+
+export function Delta({ value, suffix = "", compact }: { value: number | null; suffix?: string; compact?: boolean }) {
+  if (value === null) return compact ? null : <span className="text-muted-foreground">Sin comparación</span>;
+  if (value === 0) return <span className="text-muted-foreground">{compact ? "=" : `Sin cambio${suffix}`}</span>;
+  const up = value > 0;
+  const Icon = up ? ArrowUp : ArrowDown;
+  return (
+    <span className={cn("inline-flex items-center gap-0.5 font-medium", up ? "text-success" : "text-destructive")}>
+      <Icon className="size-3.5" aria-hidden />
+      <span className="sr-only">{up ? "sube" : "baja"}</span>
+      {Math.abs(value)}
+      {compact ? "" : ` pts${suffix}`}
+    </span>
   );
 }

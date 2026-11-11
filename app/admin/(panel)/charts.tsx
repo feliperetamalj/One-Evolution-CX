@@ -60,6 +60,38 @@ export function NpsTrend({ data }: { data: WaveSummary[] }) {
   );
 }
 
+// Tasa de respuesta por ola, en el mismo estilo que el NPS; la línea punteada es la meta.
+export function RateTrend({ data, target }: { data: WaveSummary[]; target: number }) {
+  const rows = data.filter((w) => w.responseRate !== null).map((w) => ({ ola: `Ola ${w.wave}`, tasa: w.responseRate!, n: w.responded, invited: w.invited }));
+  return (
+    <ChartContainer config={{ tasa: { label: "Tasa de respuesta", color: "var(--brand)" } }} className="aspect-auto h-64 w-full">
+      <LineChart data={rows} margin={{ top: 24, right: 24, left: 0, bottom: 0 }}>
+        <CartesianGrid vertical={false} stroke="var(--border)" />
+        <XAxis dataKey="ola" {...axis} />
+        <YAxis domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tickFormatter={(v) => `${v}%`} width={44} {...axis} />
+        <ReferenceLine y={target} stroke="var(--muted-foreground)" strokeDasharray="4 4" />
+        <ChartTooltip
+          cursor={{ stroke: "var(--muted-foreground)", strokeWidth: 1 }}
+          content={<Tip lines={(r) => [`${r.ola}`, `Tasa de respuesta ${r.tasa} %`, `${r.n} de ${r.invited} invitaciones`]} />}
+        />
+        <Line dataKey="tasa" stroke="var(--color-tasa)" strokeWidth={2} dot={{ r: 4, fill: "var(--color-tasa)", strokeWidth: 0 }} activeDot={{ r: 6 }} isAnimationActive={false}>
+          {/* Etiqueta directa solo en la última ola */}
+          <LabelList
+            dataKey="tasa"
+            content={({ x, y, value, index }) =>
+              index === rows.length - 1 ? (
+                <text x={Number(x)} y={Number(y) - 12} textAnchor="middle" className="fill-foreground text-sm font-semibold">
+                  {value}%
+                </text>
+              ) : null
+            }
+          />
+        </Line>
+      </LineChart>
+    </ChartContainer>
+  );
+}
+
 type Series = { key: string; label: string; color: string };
 type TipRow = { dataKey?: string | number; name?: string; value?: number | null; color?: string };
 

@@ -16,7 +16,8 @@ const ITEMS = [
 
 function useIsActive() {
   const path = usePathname();
-  return (href: string) => (href === "/admin" ? path === href : path.startsWith(href));
+  // La tasa de respuesta es un detalle del dashboard.
+  return (href: string) => (href === "/admin" ? path === href || path.startsWith("/admin/respuesta") : path.startsWith(href));
 }
 
 // Spinner del ítem tocado mientras la sección no está precargada; siempre montado para no mover el layout.

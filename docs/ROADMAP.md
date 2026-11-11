@@ -178,6 +178,9 @@ Falta: verlo con el seed en la base real.
   y las categorías que el cliente calificó con 1 o 2. Vista *Close the loop*: casos por contactar, en seguimiento y
   cerrados, con nota, % contactados en menos de 48 h y tiempo mediano al primer contacto. El dashboard deja solo un
   resumen (temas con más menciones de detractores y últimos comentarios).
+- [x] **CSAT por ola** en el dashboard: una línea por categoría, todas juntas o filtradas.
+- [x] **Tasa de respuesta** (`/admin/respuesta`, desde su tarjeta del dashboard): la tasa por ola con la meta de 40 %
+  y quiénes no respondieron la ola elegida, con recordatorio por WhatsApp si sigue abierta.
 
 ---
 

@@ -1,5 +1,5 @@
 import { requireAdmin } from "@/lib/auth";
-import { closeDate, currentWave, firstName, isOpen, surveyUrl } from "@/lib/invites";
+import { closeDate, currentWave, isOpen, reminderWhatsapp } from "@/lib/invites";
 import { db } from "@/lib/supabase";
 import { PLANS, type PlanKey } from "@/lib/survey";
 import { cn } from "@/lib/utils";
@@ -11,10 +11,7 @@ export const metadata = { title: "ONE · Clientes y olas" };
 type Client = { id: string; full_name: string; email: string | null; phone: string | null; plan: PlanKey | null; active: boolean };
 type Invite = { id: string; sent_at: string | null; clients: { full_name: string; phone: string | null }; responses: { invitation_id: string } | null };
 
-const whatsapp = (i: Invite) =>
-  `https://wa.me/${i.clients.phone ?? ""}?text=${encodeURIComponent(
-    `¡Hola ${firstName(i.clients.full_name)}! En ONE queremos saber cómo ha sido tu experiencia estas 2 semanas. Toma 1 minuto: ${surveyUrl(i.id)}`,
-  )}`;
+const whatsapp = (i: Invite) => reminderWhatsapp(i.id, i.clients.full_name, i.clients.phone);
 
 export default async function Clientes() {
   await requireAdmin();

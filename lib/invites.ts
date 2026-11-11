@@ -10,6 +10,11 @@ type Recipient = { id: string; clients: { full_name: string; email: string } };
 
 export const surveyUrl = (id: string) => `${process.env.APP_URL}/s/${id}`;
 export const firstName = (full: string) => full.split(" ")[0];
+// Recordatorio por WhatsApp con el link personal de la encuesta.
+export const reminderWhatsapp = (invitationId: string, fullName: string, phone: string | null) =>
+  `https://wa.me/${phone ?? ""}?text=${encodeURIComponent(
+    `¡Hola ${firstName(fullName)}! En ONE queremos saber cómo ha sido tu experiencia estas 2 semanas. Toma 1 minuto: ${surveyUrl(invitationId)}`,
+  )}`;
 export const closeDate = (iso: string) =>
   new Date(iso).toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Santiago" }).replace(",", "");
 

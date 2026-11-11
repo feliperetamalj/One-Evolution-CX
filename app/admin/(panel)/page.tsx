@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, ArrowRight, CircleAlert } from "lucide-react";
+import { ArrowRight, CircleAlert } from "lucide-react";
 import Link from "next/link";
 import { AnimatedNumber } from "@/components/motion-primitives/animated-number";
 import { requireAdmin } from "@/lib/auth";
@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { Composition, CsatTrend, NpsTrend } from "./charts";
 import { CATEGORY_COLORS, SEGMENT_COLORS } from "./colors";
 import { SEG_COLOR, SEG_LABEL } from "./comentarios/card";
-import { Panel, PeriodFilter, PeriodRange, readFilters } from "./ui";
+import { Delta, Kpi, Panel, PeriodFilter, PeriodRange, diff, readFilters } from "./ui";
 
 const CSAT_TARGET = 80; // % de satisfechos (4–5) que ONE considera "bien"; centro del mapa de calor
 
@@ -82,7 +82,15 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
               hint={current.length === 1 ? `${cur.responded} respuestas · media 2 olas ${rolling ?? "—"}` : `${cur.responded} respuestas en ${current.length} olas`}
             />
             <Kpi label="CSAT global" value={cur.csat} unit="%" delta={diff(cur.csat, prev?.csat)} vs={vs} hint="% satisfechos (4–5), promedio de categorías" />
-            <Kpi label="Tasa de respuesta" value={cur.responseRate} unit="%" delta={diff(cur.responseRate, prev?.responseRate)} vs={vs} hint={`${cur.responded} de ${cur.invited} invitaciones`} />
+            <Kpi
+              label="Tasa de respuesta"
+              value={cur.responseRate}
+              unit="%"
+              delta={diff(cur.responseRate, prev?.responseRate)}
+              vs={vs}
+              hint={`${cur.responded} de ${cur.invited} invitaciones · ver por ola y quién falta →`}
+              href={f.href({ ola: String(current.at(-1)) }, "/admin/respuesta")}
+            />
             <Link href="/admin/comentarios?vista=seguimiento" className="rounded-2xl border border-border bg-card p-4 transition-colors hover:border-ring/60 sm:p-5">
               <p className="text-sm text-muted-foreground">Por contactar</p>
               <p className="mt-2 flex items-center gap-2 text-4xl font-semibold">
@@ -246,7 +254,6 @@ function CommentsSummary({ comments, labels, responded, title, href }: { comment
   );
 }
 
-const diff = (a: number | null, b: number | null | undefined) => (a === null || b === null || b === undefined ? null : a - b);
 
 // Divergente alrededor de la meta: rojo bajo, azul sobre; la intensidad crece con la distancia.
 function heat(v: number | undefined) {
@@ -255,37 +262,6 @@ function heat(v: number | undefined) {
   const color = d >= 0 ? SEGMENT_COLORS.promotores : SEGMENT_COLORS.detractores;
   const strength = Math.round(12 + Math.min(1, Math.abs(d) / (d >= 0 ? 20 : 40)) * 48);
   return `color-mix(in oklab, ${color} ${strength}%, transparent)`;
-}
-
-function Kpi({ label, value, unit, delta, vs, hint }: { label: string; value: number | null; unit?: string; delta: number | null; vs?: string; hint: string }) {
-  return (
-    <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
-      <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="mt-2 text-4xl font-semibold">
-        {value === null ? "—" : <AnimatedNumber value={value} />}
-        {value !== null && unit && <span className="text-2xl text-muted-foreground">{unit}</span>}
-      </p>
-      <div className="mt-2 flex flex-col gap-1 text-xs">
-        {vs && <Delta value={delta} suffix={` ${vs}`} />}
-        <span className="text-muted-foreground">{hint}</span>
-      </div>
-    </div>
-  );
-}
-
-function Delta({ value, suffix = "", compact }: { value: number | null; suffix?: string; compact?: boolean }) {
-  if (value === null) return compact ? null : <span className="text-muted-foreground">Sin comparación</span>;
-  if (value === 0) return <span className="text-muted-foreground">{compact ? "=" : `Sin cambio${suffix}`}</span>;
-  const up = value > 0;
-  const Icon = up ? ArrowUp : ArrowDown;
-  return (
-    <span className={cn("inline-flex items-center gap-0.5 font-medium", up ? "text-success" : "text-destructive")}>
-      <Icon className="size-3.5" aria-hidden />
-      <span className="sr-only">{up ? "sube" : "baja"}</span>
-      {Math.abs(value)}
-      {compact ? "" : ` pts${suffix}`}
-    </span>
-  );
 }
 
 function Empty() {
