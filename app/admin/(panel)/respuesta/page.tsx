@@ -76,7 +76,7 @@ export default async function Respuesta({ searchParams }: PageProps<"/admin/resp
           unit="%"
           delta={diff(cur?.responseRate ?? null, prev?.responseRate)}
           vs={prev ? `vs Ola ${prev.wave}` : undefined}
-          hint={`Meta: ${RESPONSE_TARGET} % o más`}
+          hint={open ? `Ola en curso: la tasa aún puede subir · meta ${RESPONSE_TARGET} %` : `Meta: ${RESPONSE_TARGET} % o más`}
         />
         <Kpi label="Respondieron" value={cur?.responded ?? 0} delta={null} hint={`de ${cur?.invited ?? 0} invitaciones`} />
         <div className="col-span-2 lg:col-span-1">
