@@ -4,6 +4,7 @@ Encuesta quincenal (NPS + 8 CSAT + comentarios) y dashboard del CEO para ONE Evo
 
 - Arquitectura: [docs/ADR-001-arquitectura.md](docs/ADR-001-arquitectura.md)
 - Plan por etapas: [docs/ROADMAP.md](docs/ROADMAP.md)
+- Resumen para presentaciones: [docs/RESUMEN-PRESENTACION.md](docs/RESUMEN-PRESENTACION.md)
 
 ```bash
 npm install
