@@ -33,7 +33,7 @@ Cada etapa termina en algo desplegado y verificable. No se avanza a la siguiente
 - [x] `git init` (repositorio local)
 - [x] Repositorio en GitHub: `feliperetamalj/One-Evolution-CX` (público, sin secretos; `.env*` queda fuera)
 - [x] Proyecto Next.js 16 + Tailwind v4 + shadcn/ui (estilo base `power` de design-styles)
-- [x] Proyecto Supabase en la organización de ONE (quedó en us-west-2; Vercel en `pdx1` para estar junto a la base). Hoy tiene datos ficticios: limpiar antes del piloto
+- [x] Proyecto Supabase en la organización de ONE (quedó en us-west-2; Vercel en `pdx1` para estar junto a la base). Datos ficticios borrados el 16-11-2026 (numeración de olas reiniciada: la próxima es la Ola 1)
 - [x] Proyecto Vercel `one-cx` (región `pdx1`), desplegado en https://one-cx.vercel.app por CLI
 - [x] Variables de entorno de producción cargadas en Vercel
 - [x] Vercel conectado al repo de GitHub: cada push a `main` publica en producción
