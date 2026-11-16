@@ -111,6 +111,14 @@ test("migración, respuestas e indicadores", async () => {
   await db.query("update waves set opens_at = now() - interval '8 days', closes_at = now() - interval '1 day' where id = $1", [wave1]);
   await assert.rejects(save(inv.Beto, 10), /invitation_closed/);
   await assert.rejects(save("00000000-0000-0000-0000-000000000000", 10), /invitation_closed/);
+
+  // Cliente que llega con la ola abierta: se suma con sus 8 preguntas, sin duplicar a los demás.
+  await db.exec("insert into clients (full_name, plan) values ('Juanjo Tarde', 'personal')");
+  const late = async () => (await db.query<{ n: number }>("select invite_to_wave($1) as n", [wave2])).rows[0].n;
+  assert.equal(await late(), 1);
+  assert.equal(await late(), 0, "idempotente");
+  const juanjo = (await ids(wave2))["Juanjo Tarde"];
+  assert.equal((await db.query("select 1 from invitation_questions where invitation_id = $1", [juanjo])).rows.length, 8);
 });
 
 test("olas de cada período y del período anterior", () => {

@@ -85,8 +85,11 @@ export async function importClients(_: string | null, form: FormData): Promise<s
     withoutEmail.length ? sb.from("clients").insert(withoutEmail) : { error: null },
   ]);
   if (a.error || b.error) return `No se pudo importar: ${(a.error ?? b.error)!.message}`;
+  // Con una ola abierta, los nuevos se suman a ella (con su enlace) en vez de esperar a la próxima.
+  const wave = await currentWave();
+  const added = isOpen(wave) ? (await sb.rpc("invite_to_wave", { p_wave: wave!.id })).data : 0;
   refresh();
-  return [`${rows.length} clientes importados.`, ...errors].join("\n");
+  return [`${rows.length} clientes importados.`, added ? `${added} sumados a la Ola ${wave!.id}: ya tienen su enlace.` : "", ...errors].filter(Boolean).join("\n");
 }
 
 // Editar un cliente no cambia sus enlaces: las invitaciones apuntan al cliente por id.
