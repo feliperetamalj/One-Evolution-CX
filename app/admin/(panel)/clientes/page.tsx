@@ -1,9 +1,14 @@
+import { Search } from "lucide-react";
+import Form from "next/form";
+import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { closeDate, currentWave, isOpen, reminderWhatsapp } from "@/lib/invites";
 import { db } from "@/lib/supabase";
-import { PLANS, type PlanKey } from "@/lib/survey";
+import { PLANS, plain, type PlanKey } from "@/lib/survey";
 import { cn } from "@/lib/utils";
 import { setClientActive } from "../../actions";
+import { ParamSelect } from "../charts";
+import { planOptions } from "../ui";
 import { ImportClients, OpenWave } from "./forms";
 
 export const metadata = { title: "ONE · Clientes y olas" };
@@ -13,8 +18,11 @@ type Invite = { id: string; sent_at: string | null; clients: { full_name: string
 
 const whatsapp = (i: Invite) => reminderWhatsapp(i.id, i.clients.full_name, i.clients.phone);
 
-export default async function Clientes() {
+export default async function Clientes({ searchParams }: PageProps<"/admin/clientes">) {
   await requireAdmin();
+  const sp = await searchParams;
+  const q = typeof sp.q === "string" ? sp.q.trim() : "";
+  const plan = typeof sp.plan === "string" && sp.plan in PLANS ? (sp.plan as PlanKey) : null;
   const sb = db();
   const [wave, { data: clients }] = await Promise.all([
     currentWave(),
@@ -27,6 +35,8 @@ export default async function Clientes() {
   const missing = (invites ?? []).filter((i) => !i.responses).sort((a, b) => a.clients.full_name.localeCompare(b.clients.full_name));
   const all = clients ?? [];
   const active = all.filter((c) => c.active).length;
+  // Filtro en memoria: el padrón es de cientos de clientes. Sin tildes ni mayúsculas, como en Comentarios.
+  const shown = all.filter((c) => (!plan || c.plan === plan) && (!q || plain(c.full_name).includes(plain(q))));
 
   return (
     <div className="flex flex-col gap-8">
@@ -68,10 +78,43 @@ export default async function Clientes() {
       </section>
 
       <section className="flex flex-col gap-4">
-        <h2 className="text-xl font-semibold font-sans">
-          Clientes <span className="text-base font-normal text-muted-foreground">· {active} activos de {all.length}</span>
-        </h2>
-        {all.length ? (
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <h2 className="text-xl font-semibold font-sans">
+            Clientes <span className="text-base font-normal text-muted-foreground">· {active} activos de {all.length}</span>
+          </h2>
+          {all.length > 0 && (
+            <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+              <Form action="/admin/clientes" role="search" className="flex min-w-0 flex-1 sm:flex-none">
+                {plan && <input type="hidden" name="plan" value={plan} />}
+                <input
+                  type="search"
+                  name="q"
+                  defaultValue={q}
+                  aria-label="Buscar cliente por nombre"
+                  placeholder="Buscar por nombre…"
+                  className="h-11 w-full min-w-0 rounded-l-xl border border-input bg-input/20 px-3 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 sm:w-56 sm:text-sm"
+                />
+                <button aria-label="Buscar" className="flex size-11 shrink-0 items-center justify-center rounded-r-xl border border-l-0 border-input text-muted-foreground hover:text-foreground">
+                  <Search className="size-4" aria-hidden />
+                </button>
+              </Form>
+              <ParamSelect param="plan" label="Plan" value={plan ?? ""} options={planOptions} />
+            </div>
+          )}
+        </div>
+        {(q || plan) && (
+          <p className="-mt-2 text-sm text-muted-foreground" aria-live="polite">
+            {shown.length} {shown.length === 1 ? "cliente" : "clientes"}
+            {q && ` con “${q}”`}
+            {plan && ` en ${PLANS[plan]}`} ·{" "}
+            <Link href="/admin/clientes" className="text-brand underline-offset-4 hover:underline">
+              Ver todos
+            </Link>
+          </p>
+        )}
+        {all.length && !shown.length ? (
+          <p className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">Ningún cliente coincide con la búsqueda.</p>
+        ) : all.length ? (
           <div className="overflow-x-auto rounded-2xl border border-border">
             <table className="w-full text-sm">
               <thead className="bg-card text-left text-muted-foreground">
@@ -84,7 +127,7 @@ export default async function Clientes() {
                 </tr>
               </thead>
               <tbody>
-                {all.map((c) => (
+                {shown.map((c) => (
                   <tr key={c.id} className={cn("border-t border-border", !c.active && "text-muted-foreground")}>
                     <td className="px-4 py-3 whitespace-nowrap">{c.full_name}</td>
                     <td className="px-4 py-3">{c.email ?? "—"}</td>
