@@ -1,4 +1,4 @@
-import { Download, Search } from "lucide-react";
+import { Download, Pencil, Search } from "lucide-react";
 import Form from "next/form";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
@@ -142,7 +142,16 @@ export default async function Clientes({ searchParams }: PageProps<"/admin/clien
               <tbody>
                 {shown.map((c) => (
                   <tr key={c.id} className={cn("border-t border-border", !c.active && "text-muted-foreground")}>
-                    <td className="px-4 py-3 whitespace-nowrap">{c.full_name}</td>
+                    <td className="px-4 py-1 whitespace-nowrap">
+                      <Link
+                        href={`/admin/clientes/${c.id}`}
+                        aria-label={`Editar a ${c.full_name}`}
+                        className="-mx-2 inline-flex min-h-11 items-center gap-2 rounded-lg px-2 hover:bg-muted"
+                      >
+                        {c.full_name}
+                        <Pencil className="size-3.5 text-muted-foreground" aria-hidden />
+                      </Link>
+                    </td>
                     <td className="px-4 py-3">{c.email ?? "—"}</td>
                     <td className="px-4 py-3 whitespace-nowrap tabular-nums">{c.phone ? `+${c.phone}` : "—"}</td>
                     <td className="px-4 py-3 whitespace-nowrap">{c.plan ? PLANS[c.plan] : "—"}</td>

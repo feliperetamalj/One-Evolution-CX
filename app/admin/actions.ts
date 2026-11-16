@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import { authClient, requireAdmin } from "@/lib/auth";
 import { currentWave, isOpen, sendInvites } from "@/lib/invites";
 import { db, isUuid } from "@/lib/supabase";
-import { CASE_STATUS, QUESTIONS_PER_CATEGORY as LIMIT, isEmail, parseClients, type CaseStatus } from "@/lib/survey";
+import { CASE_STATUS, PLANS, QUESTIONS_PER_CATEGORY as LIMIT, isEmail, isPhone, normPhone, parseClients, type CaseStatus } from "@/lib/survey";
 
 export type FormResult = { ok?: string; error?: string; password?: string } | null;
 
@@ -87,6 +87,27 @@ export async function importClients(_: string | null, form: FormData): Promise<s
   if (a.error || b.error) return `No se pudo importar: ${(a.error ?? b.error)!.message}`;
   refresh();
   return [`${rows.length} clientes importados.`, ...errors].join("\n");
+}
+
+// Editar un cliente no cambia sus enlaces: las invitaciones apuntan al cliente por id.
+export async function updateClient(id: string, _: FormResult, form: FormData): Promise<FormResult> {
+  await requireAdmin();
+  if (!isUuid(id)) return { error: "Cliente no válido." };
+  const full_name = String(form.get("full_name") ?? "").trim().replace(/\s+/g, " ");
+  const email = String(form.get("email") ?? "").trim().toLowerCase() || null;
+  const phone = normPhone(String(form.get("phone") ?? "")) || null;
+  const plan = String(form.get("plan") ?? "");
+  if (!full_name) return { error: "Falta el nombre." };
+  if (email && !isEmail(email)) return { error: "El email no es válido." };
+  if (phone && !isPhone(phone)) return { error: "El celular no es válido: en Chile son 9 dígitos después del +56 (9 1234 5678)." };
+  if (plan && !(plan in PLANS)) return { error: "Plan no válido." };
+  const { error } = await db()
+    .from("clients")
+    .update({ full_name, email, phone, plan: plan || null, active: form.get("active") === "on" })
+    .eq("id", id);
+  if (error) return { error: error.code === "23505" ? "Ese email ya lo tiene otro cliente." : "No se pudo guardar." };
+  refresh();
+  return { ok: "Cambios guardados." };
 }
 
 export async function setClientActive(id: string, active: boolean) {

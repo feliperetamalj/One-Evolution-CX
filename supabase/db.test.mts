@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
-import { caseStatus, isCase, isOverdue, parseClients, periodWaves, pool, summarize, themesOf, type CsatStat, type WavePlanStat } from "../lib/survey.ts";
+import { caseStatus, isCase, isOverdue, isPhone, normPhone, parseClients, periodWaves, pool, summarize, themesOf, type CsatStat, type WavePlanStat } from "../lib/survey.ts";
 
 const dir = new URL("./migrations/", import.meta.url);
 const migrations = readdirSync(dir).sort().map((f) => readFileSync(new URL(f, dir), "utf8"));
@@ -164,4 +164,8 @@ test("importar clientes desde CSV de Excel", () => {
     { full_name: "Luis", email: null, phone: null, plan: "universitario" },
   ]);
   assert.deepEqual(errors, ["Línea 7: falta el nombre", "Línea 8: email inválido (malo)"]);
+  // Editar cliente: celular chileno de 11 dígitos o extranjero E.164.
+  assert.equal(normPhone("+56 9 8765 4321"), "56987654321");
+  assert.ok(isPhone("56987654321") && isPhone("34684056944"));
+  assert.ok(!isPhone("5699801121"), "chileno con un dígito de menos");
 });

@@ -188,6 +188,16 @@ const PLAN_ALIASES: Record<string, PlanKey> = {
   libre: "libre", universitario: "universitario",
 };
 
+// Celular a solo dígitos con código de país (como lo pide wa.me). Acepta "9 8765 4321", "+56 9…" o solo los 8 dígitos.
+export function normPhone(raw: string) {
+  let phone = raw.replace(/\D/g, "");
+  if (phone.length === 8) phone = "569" + phone; // celular sin +56 9
+  if (phone.length === 9 && phone.startsWith("9")) phone = "56" + phone;
+  return phone;
+}
+// Chile: 56 + 9 dígitos. Otro país: entre 8 y 15 dígitos (E.164).
+export const isPhone = (p: string) => (p.startsWith("56") ? /^569\d{8}$/.test(p) : /^\d{8,15}$/.test(p));
+
 // CSV pegado desde Excel/Sheets: nombre, email, teléfono, plan. Acepta "," ";" o tab y una fila de encabezado.
 // ponytail: no soporta comillas con separadores dentro; basta para un padrón de nombres y contactos.
 export function parseClients(text: string) {
@@ -202,11 +212,9 @@ export function parseClients(text: string) {
     if (!name) return errors.push(`Línea ${i + 1}: falta el nombre`);
     const email = rawEmail.toLowerCase() || null;
     if (email && !isEmail(email)) return errors.push(`Línea ${i + 1}: email inválido (${rawEmail})`);
-    let phone = rawPhone.replace(/\D/g, "");
-    if (phone.length === 8) phone = "569" + phone; // celular sin +56 9
-    if (phone.length === 9 && phone.startsWith("9")) phone = "56" + phone;
+    const phone = normPhone(rawPhone);
     const planKey = rawPlan.normalize("NFD").replace(/[̀-ͯ\s]/g, "").toLowerCase();
-    rows.push({ full_name: name, email, phone: phone || null, plan: PLAN_ALIASES[planKey] ?? null });
+    rows.push({ full_name: name.replace(/\s+/g, " "), email, phone: phone || null, plan: PLAN_ALIASES[planKey] ?? null });
   });
   return { rows, errors };
 }

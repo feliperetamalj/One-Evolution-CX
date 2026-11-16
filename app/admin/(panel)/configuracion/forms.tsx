@@ -5,10 +5,10 @@ import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { addAdmin, changePassword, removeAdmin, saveAlertEmails, type FormResult } from "../../actions";
 
-const input =
+export const input =
   "h-11 w-full rounded-xl border border-input bg-input/20 px-3 text-base outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 sm:text-sm";
 
-function Status({ result }: { result: FormResult }) {
+export function Status({ result }: { result: FormResult }) {
   if (!result?.error && !result?.ok) return null;
   return result.error ? (
     <p role="alert" className="text-sm text-destructive">
