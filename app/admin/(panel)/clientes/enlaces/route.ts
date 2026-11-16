@@ -1,11 +1,12 @@
 import { requireAdmin } from "@/lib/auth";
 import { currentWave, surveyUrl } from "@/lib/invites";
 import { db } from "@/lib/supabase";
+import { isPhone } from "@/lib/survey";
 
 type Row = { id: string; clients: { full_name: string; phone: string | null } };
 
 // CSV con el link personal de cada invitado de la ola, para enviarlos por WhatsApp desde otro número o agente.
-// /admin/clientes/enlaces (ola actual) o ?ola=N. Solo quienes tienen celular.
+// /admin/clientes/enlaces (ola actual) o ?ola=N. Solo quienes tienen un celular válido: uno malo haría fallar el envío.
 export async function GET(request: Request) {
   await requireAdmin();
   const n = Number(new URL(request.url).searchParams.get("ola"));
@@ -14,7 +15,7 @@ export async function GET(request: Request) {
 
   const { data } = await db().from("invitations").select("id, clients(full_name, phone)").eq("wave_id", wave).returns<Row[]>();
   const rows = (data ?? [])
-    .filter((i) => i.clients.phone)
+    .filter((i) => i.clients.phone && isPhone(i.clients.phone))
     .sort((a, b) => a.clients.full_name.localeCompare(b.clients.full_name))
     .map((i) => [i.clients.full_name, i.clients.phone!, surveyUrl(i.id)]);
 
