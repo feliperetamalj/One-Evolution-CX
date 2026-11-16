@@ -197,7 +197,8 @@ export function parseClients(text: string) {
     if (!line.trim()) return;
     const sep = line.includes("\t") ? "\t" : line.includes(";") ? ";" : ",";
     const [name = "", rawEmail = "", rawPhone = "", rawPlan = ""] = line.split(sep).map((c) => c.trim().replace(/^"|"$/g, ""));
-    if (i === 0 && /^nombre/i.test(name)) return;
+    // Títulos: la fila de encabezado, o sus celdas sueltas si al pegar quedaron una por línea.
+    if (/^(nombres?|email|correo|tel[eé]fono|celular|plan)$/i.test(name)) return;
     if (!name) return errors.push(`Línea ${i + 1}: falta el nombre`);
     const email = rawEmail.toLowerCase() || null;
     if (email && !isEmail(email)) return errors.push(`Línea ${i + 1}: email inválido (${rawEmail})`);

@@ -154,7 +154,7 @@ test("temas de los comentarios y estado de los casos", () => {
 
 test("importar clientes desde CSV de Excel", () => {
   const { rows, errors } = parseClients(
-    "Nombre;Email;Teléfono;Plan\nCamila Rojas;Camila@Mail.CL;9 8765 4321;Plan 3\nTomás Díaz;;+56 9 1234 5678;Personal\n;x@y.cl;;\nAna;malo;;Duo\nBeto,beto@x.cl,87654321,pase diario\nCata\t\t56912345678\tPP\nLuis;;;Universitario",
+    "Nombre;Email;Teléfono;Plan\nEmail\nTeléfono\nPlan\nCamila Rojas;Camila@Mail.CL;9 8765 4321;Plan 3\nTomás Díaz;;+56 9 1234 5678;Personal\n;x@y.cl;;\nAna;malo;;Duo\nBeto,beto@x.cl,87654321,pase diario\nCata\t\t56912345678\tPP\nLuis;;;Universitario",
   );
   assert.deepEqual(rows, [
     { full_name: "Camila Rojas", email: "camila@mail.cl", phone: "56987654321", plan: "plan3" },
@@ -163,5 +163,5 @@ test("importar clientes desde CSV de Excel", () => {
     { full_name: "Cata", email: null, phone: "56912345678", plan: "personal" },
     { full_name: "Luis", email: null, phone: null, plan: "universitario" },
   ]);
-  assert.deepEqual(errors, ["Línea 4: falta el nombre", "Línea 5: email inválido (malo)"]);
+  assert.deepEqual(errors, ["Línea 7: falta el nombre", "Línea 8: email inválido (malo)"]);
 });
