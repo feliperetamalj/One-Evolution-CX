@@ -33,7 +33,7 @@ export default function PanelLayout({ children }: LayoutProps<"/admin">) {
         </form>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl px-4 pt-6 pb-28 sm:px-6 md:px-10 md:pt-10 md:pb-16">
+      <main className="mx-auto w-full max-w-6xl px-4 pt-6 pb-10 sm:px-6 md:px-10 md:pt-10 md:pb-16">
         {/* Sin verificación aquí: layout y página se renderizan en paralelo y al navegar solo se pide la página.
             Cada página llama a requireAdmin(). El estado de carga vive en loading.tsx. */}
         {children}

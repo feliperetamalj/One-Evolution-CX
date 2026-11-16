@@ -67,6 +67,7 @@ export function TabBar() {
   const isActive = useIsActive();
   return (
     <nav
+      data-tabbar
       aria-label="Panel"
       className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-background/80 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
     >

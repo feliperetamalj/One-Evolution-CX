@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Oswald } from "next/font/google";
+import { Footer } from "@/components/footer";
 import "./globals.css";
 
 const inter = Inter({
@@ -31,7 +32,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="es"
       className={`dark ${inter.variable} ${oswald.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <Footer />
+      </body>
     </html>
   );
 }
