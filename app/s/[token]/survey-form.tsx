@@ -34,7 +34,9 @@ export function SurveyForm({
   questions: { category: string; text: string }[]; // 1 por categoría
   initial: Answer | null;
 }) {
-  const [step, setStep] = useState(0);
+  // Quien dejó solo el NPS (lo guardamos al pasar el paso 1) retoma directo en los CSAT.
+  const incomplete = !!initial && questions.some((q) => !initial.csat[q.category]);
+  const [step, setStep] = useState(incomplete ? 1 : 0);
   const [dir, setDir] = useState(1);
   const [a, setA] = useState<Answer>(initial ?? { nps: -1, csat: {}, comment: "", contactOk: false });
   const [saving, setSaving] = useState(false);
@@ -60,13 +62,8 @@ export function SurveyForm({
     return res.ok;
   };
 
-  const setCsat = (key: string, score: number | null) =>
-    setA((prev) => {
-      const csat = { ...prev.csat };
-      if (score === null) delete csat[key];
-      else csat[key] = score;
-      return { ...prev, csat };
-    });
+  const setCsat = (key: string, score: number) => setA((prev) => ({ ...prev, csat: { ...prev.csat, [key]: score } }));
+  const missing = questions.filter((q) => !a.csat[q.category]).length;
 
   const submit = async () => {
     setSaving(true);
@@ -77,7 +74,7 @@ export function SurveyForm({
 
   const steps = [
     <section key="nps" className="flex flex-col gap-6">
-      {initial && (
+      {initial && !incomplete && (
         <p className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
           Ya respondiste esta encuesta. Puedes cambiar tus respuestas hasta el {closesAt}.
         </p>
@@ -109,11 +106,15 @@ export function SurveyForm({
     </section>,
 
     <section key="csat" className="flex flex-col gap-6">
+      {incomplete && (
+        <p className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+          Hola, {firstName}: ya tenemos tu nota de recomendación. Solo falta que evalúes estos aspectos.
+        </p>
+      )}
       <div className="flex flex-col gap-2">
         <StepTitle step={1}>¿Qué tan satisfecho/a estás con…?</StepTitle>
         <p className="text-sm text-pretty text-muted-foreground">
-          Piensa en tus sesiones de las últimas 2 semanas y evalúa cada aspecto del gimnasio. Si algo no aplica, déjalo
-          en blanco.
+          Piensa en tus sesiones de las últimas 2 semanas y evalúa cada aspecto del gimnasio.
         </p>
       </div>
       {questions.map((q) => (
@@ -128,7 +129,6 @@ export function SurveyForm({
                 label={`${n}, ${CSAT_SCALE[n - 1]}`}
                 checked={a.csat[q.category] === n}
                 onSelect={() => setCsat(q.category, n)}
-                onTap={() => a.csat[q.category] === n && setCsat(q.category, null)}
               />
             ))}
           </div>
@@ -143,8 +143,8 @@ export function SurveyForm({
         <Button size="lg" variant="ghost" onClick={() => go(0)}>
           Atrás
         </Button>
-        <Button size="lg" className="flex-1" onClick={() => (save(a), go(2))}>
-          Continuar
+        <Button size="lg" className="flex-1" disabled={missing > 0} onClick={() => (save(a), go(2))}>
+          {missing ? `${missing === 1 ? "Falta 1" : `Faltan ${missing}`} por evaluar` : "Continuar"}
         </Button>
       </Actions>
     </section>,
@@ -246,14 +246,12 @@ function StepTitle({ step, className, children }: { step: number; className?: st
 }
 
 // Radio nativo con forma de botón: flechas del teclado y VoiceOver funcionan sin código extra.
-// onTap solo se dispara con dedo/mouse (e.detail > 0), no al moverse con flechas: así tocar de nuevo un CSAT lo borra.
 function Choice({
   name,
   value,
   label,
   checked,
   onSelect,
-  onTap,
   className,
 }: {
   name: string;
@@ -261,7 +259,6 @@ function Choice({
   label?: string;
   checked: boolean;
   onSelect: () => void;
-  onTap?: () => void;
   className?: string;
 }) {
   return (
@@ -281,7 +278,6 @@ function Choice({
         checked={checked}
         aria-label={label}
         onChange={onSelect}
-        onClick={(e) => e.detail > 0 && onTap?.()}
         className="sr-only"
       />
       {value}

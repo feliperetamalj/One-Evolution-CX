@@ -18,6 +18,11 @@ const valid = (id: string, a: Answer) =>
 // Se llama al pasar el NPS (para no perderlo si abandonan), al pasar los CSAT y al enviar.
 export async function saveResponse(id: string, a: Answer, final: boolean): Promise<SaveResult> {
   if (!valid(id, a)) return { ok: false, error: "invalid" };
+  // Al enviar, los CSAT son obligatorios: uno por cada categoría que se le preguntó.
+  if (final) {
+    const { count } = await db().from("invitation_questions").select("*", { count: "exact", head: true }).eq("invitation_id", id);
+    if (Object.keys(a.csat).length < (count ?? 0)) return { ok: false, error: "invalid" };
+  }
   const { error } = await db().rpc("save_response", {
     p_invitation: id,
     p_nps: a.nps,
