@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutDashboard, ListChecks, LoaderCircle, MessageSquareText, Settings, Users } from "lucide-react";
+import { ClipboardList, LayoutDashboard, ListChecks, LoaderCircle, MessageSquareText, Settings, Users } from "lucide-react";
 import { MotionConfig, motion } from "motion/react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 const ITEMS = [
   { href: "/admin", label: "Dashboard", short: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/comentarios", label: "Comentarios", short: "Comentarios", icon: MessageSquareText },
+  { href: "/admin/respuestas", label: "Respuestas", short: "Respuestas", icon: ClipboardList },
   { href: "/admin/clientes", label: "Clientes y olas", short: "Clientes", icon: Users },
   { href: "/admin/preguntas", label: "Banco de preguntas", short: "Preguntas", icon: ListChecks },
   { href: "/admin/configuracion", label: "Configuración", short: "Ajustes", icon: Settings },
@@ -17,7 +18,7 @@ const ITEMS = [
 function useIsActive() {
   const path = usePathname();
   // La tasa de respuesta es un detalle del dashboard.
-  return (href: string) => (href === "/admin" ? path === href || path.startsWith("/admin/respuesta") : path.startsWith(href));
+  return (href: string) => (href === "/admin" ? path === href || path === "/admin/respuesta" : path.startsWith(href));
 }
 
 // Spinner del ítem tocado mientras la sección no está precargada; siempre montado para no mover el layout.
