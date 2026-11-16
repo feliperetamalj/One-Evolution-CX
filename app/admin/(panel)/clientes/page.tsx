@@ -1,4 +1,4 @@
-import { Search } from "lucide-react";
+import { Download, Search } from "lucide-react";
 import Form from "next/form";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
@@ -54,7 +54,20 @@ export default async function Clientes({ searchParams }: PageProps<"/admin/clien
               ? `La Ola ${wave.id} cerró. La próxima se abre sola 14 días después de la anterior; también puedes abrirla ahora.`
               : "Aún no hay olas. Cuando tengas tus clientes importados, abre la primera: desde ahí se abre una nueva cada 14 días."}
         </p>
-        <OpenWave disabled={open || active === 0} />
+        <div className="flex flex-wrap items-start gap-3">
+          <OpenWave disabled={open || active === 0} />
+          {open && (
+            // Archivo, no navegación: <a download> en vez de Link.
+            <a
+              href="/admin/clientes/enlaces"
+              download
+              className="inline-flex h-11 items-center gap-2 rounded-xl border border-border px-4 text-sm font-medium hover:bg-muted"
+            >
+              <Download className="size-4" aria-hidden />
+              Descargar enlaces (CSV)
+            </a>
+          )}
+        </div>
         {missing.length > 0 && (
           <details className="group">
             <summary className="cursor-pointer text-sm text-brand">Recordar por WhatsApp a quienes faltan ({missing.length})</summary>
