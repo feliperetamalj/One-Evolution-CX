@@ -144,7 +144,7 @@ export default async function Clientes({ searchParams }: PageProps<"/admin/clien
                   <tr key={c.id} className={cn("border-t border-border", !c.active && "text-muted-foreground")}>
                     <td className="px-4 py-1 whitespace-nowrap">
                       <Link
-                        href={`/admin/clientes/${c.id}`}
+                        href={`/admin/clientes/editar?id=${c.id}`}
                         aria-label={`Editar a ${c.full_name}`}
                         className="-mx-2 inline-flex min-h-11 items-center gap-2 rounded-lg px-2 hover:bg-muted"
                       >

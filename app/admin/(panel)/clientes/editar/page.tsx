@@ -7,10 +7,11 @@ import { EditClient } from "../forms";
 
 export const metadata = { title: "ONE · Editar cliente" };
 
-export default async function EditarCliente({ params }: PageProps<"/admin/clientes/[id]">) {
+// /admin/clientes/editar?id=… (query y no segmento [id]: así el menú del layout, que lee la ruta, sigue prerenderizado).
+export default async function EditarCliente({ searchParams }: PageProps<"/admin/clientes/editar">) {
   await requireAdmin();
-  const { id } = await params;
-  if (!isUuid(id)) notFound();
+  const { id } = await searchParams;
+  if (typeof id !== "string" || !isUuid(id)) notFound();
   const { data: client } = await db().from("clients").select("id, full_name, email, phone, plan, active").eq("id", id).maybeSingle();
   if (!client) notFound();
 
