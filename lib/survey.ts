@@ -16,6 +16,8 @@ export const PLANS = {
   plan4: "Plan 4",
   plan6: "Plan 6",
   pase: "Pase diario",
+  libre: "Libre",
+  universitario: "Universitario",
 } as const;
 export type PlanKey = keyof typeof PLANS;
 
@@ -181,8 +183,9 @@ export const isEmail =(s: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s);
 export type ClientRow ={ full_name: string; email: string | null; phone: string | null; plan: PlanKey | null };
 
 const PLAN_ALIASES: Record<string, PlanKey> = {
-  personal: "personal", duo: "duo", "3": "plan3", plan3: "plan3", "4": "plan4", plan4: "plan4",
+  personal: "personal", pp: "personal", duo: "duo", "3": "plan3", plan3: "plan3", "4": "plan4", plan4: "plan4",
   "6": "plan6", plan6: "plan6", pase: "pase", pasediario: "pase",
+  libre: "libre", universitario: "universitario",
 };
 
 // CSV pegado desde Excel/Sheets: nombre, email, teléfono, plan. Acepta "," ";" o tab y una fila de encabezado.
